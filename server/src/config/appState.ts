@@ -17,13 +17,19 @@ export type DemoBooking = {
   _id: string
   customerId?: string
   providerId?: string
+  providerBusinessName?: string
   service: string
   date: string
   time: string
   address: string
   description?: string
   amount?: number
+  paymentMethod?: 'cash_on_delivery' | 'upi'
+  urgent?: boolean
   bookingStatus: string
+  paymentStatus?: string
+  messages?: { senderId: string; senderRole: string; message: string; createdAt: string }[]
+  complaint?: { message: string; providerBusinessName?: string; status: string; createdAt: string }
   review?: {
     rating: number
     comment: string
@@ -40,10 +46,25 @@ export type DemoProvider = {
   address?: string
   experience?: number
   pricing?: string
+  skills?: string[]
+  serviceAreas?: string[]
+  workingHours?: { days: string[]; start: string; end: string }
+  pricingDetails?: string
+  portfolioImages?: string[]
+  isAvailable?: boolean
   rating: number
   totalReviews: number
   isVerified?: boolean
   isActive?: boolean
+}
+
+export type DemoWithdrawal = {
+  _id: string
+  providerId: string
+  amount: number
+  payoutUpiId: string
+  status: string
+  createdAt: string
 }
 
 export const userSchema = new Schema({
@@ -79,6 +100,12 @@ export const providerSchema = new Schema({
   address: String,
   experience: Number,
   pricing: String,
+  skills: [String],
+  serviceAreas: [String],
+  workingHours: { days: [String], start: String, end: String },
+  pricingDetails: String,
+  portfolioImages: [String],
+  isAvailable: { type: Boolean, default: true },
   rating: {
     type: Number,
     default: 0,
@@ -100,34 +127,48 @@ export const providerSchema = new Schema({
 export const bookingSchema = new Schema({
   customerId: Schema.Types.Mixed,
   providerId: Schema.Types.Mixed,
+  providerBusinessName: String,
   service: String,
   date: String,
   time: String,
   address: String,
   description: String,
   amount: Number,
+  paymentMethod: { type: String, enum: ['cash_on_delivery', 'upi'], default: 'cash_on_delivery' },
+  urgent: { type: Boolean, default: false },
   paymentStatus: {
     type: String,
     default: 'pending',
   },
   bookingStatus: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected', 'on_the_way', 'in_progress', 'completed'],
+    enum: ['pending', 'accepted', 'rejected', 'on_the_way', 'in_progress', 'completed', 'cancelled'],
     default: 'pending',
   },
+  messages: [{ senderId: String, senderRole: String, message: String, createdAt: String }],
+  complaint: { message: String, providerBusinessName: String, status: { type: String, default: 'open' }, createdAt: String },
   review: {
     rating: Number,
     comment: String,
   },
 }, { timestamps: true })
 
+export const withdrawalSchema = new Schema({
+  providerId: Schema.Types.Mixed,
+  amount: { type: Number, required: true, min: 1 },
+  payoutUpiId: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'approved', 'paid', 'rejected'], default: 'pending' },
+}, { timestamps: true })
+
 export const User = model('User', userSchema)
 export const Provider = model('Provider', providerSchema)
 export const Booking = model('Booking', bookingSchema)
+export const Withdrawal = model('Withdrawal', withdrawalSchema)
 
 export const demoUsers: AuthUser[] = []
 export const demoBookings: DemoBooking[] = []
 export const demoProviderServices: DemoProvider[] = []
+export const demoWithdrawals: DemoWithdrawal[] = []
 
 export const demoProviders: DemoProvider[] = [
   { _id: 'fixright', businessName: 'FixRight Services', category: 'Home repair', city: 'Pune', rating: 4.9, totalReviews: 128, pricing: 'From ₹499', isVerified: true },

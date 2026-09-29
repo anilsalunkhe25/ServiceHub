@@ -34,7 +34,8 @@ function getError(reason: unknown) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('servicehub_user')
-    return stored ? (JSON.parse(stored) as User) : null
+    const token = localStorage.getItem('servicehub_token')
+    return stored && token ? (JSON.parse(stored) as User) : null
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

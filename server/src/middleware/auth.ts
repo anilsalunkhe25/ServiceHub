@@ -14,7 +14,7 @@ export function auth(requiredRole?: string) {
       const payload = jwt.verify(token, jwtSecret) as { id: string; role: string }
 
       if (requiredRole && payload.role !== requiredRole) {
-        return response.status(403).json({ success: false, message: 'Insufficient permissions' })
+        return response.status(403).json({ success: false, message: `This action requires a ${requiredRole} account` })
       }
 
       request.user = payload

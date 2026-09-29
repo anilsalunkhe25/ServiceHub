@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
-import { Provider, User, demoUsers, databaseReady, tokenFor } from '../config/appState.js'
+import { User, demoUsers, databaseReady, tokenFor } from '../config/appState.js'
 import type { AuthUser } from '../config/appState.js'
 
 const router = Router()
@@ -53,10 +53,6 @@ router.post('/register', async (request, response, next) => {
     const user = await User.create(
         { name, email: normalizedEmail, phone, city, role, password: passwordHash }
     )
-
-    if (role === 'provider') {
-      await Provider.create({ userId: user._id, businessName: name, city, isActive: true })
-    }
 
     response.status(201).json({
       success: true,

@@ -18,12 +18,50 @@ export type Provider = {
     totalReviews: number;
     pricing?: string;
     isVerified?: boolean;
-    description?: string
+    isFallback?: boolean;
+    description?: string;
+    skills?: string[];
+    serviceAreas?: string[];
+    workingHours?: { days: string[]; start: string; end: string };
+    pricingDetails?: string;
+    portfolioImages?: string[];
+    isAvailable?: boolean
+}
+
+export type ProviderServicePayload = {
+    businessName: string;
+    category: string;
+    description: string;
+    city: string;
+    address: string;
+    pricing: string;
+    skills?: string[];
+    serviceAreas?: string[];
+    workingHours?: { days: string[]; start: string; end: string };
+    pricingDetails?: string;
+    portfolioImages?: string[];
+    isAvailable?: boolean
+}
+
+export type PaymentMethod = 'cash_on_delivery' | 'upi'
+
+export type ProviderWithdrawal = {
+    _id: string;
+    amount: number;
+    payoutUpiId: string;
+    status: 'pending' | 'approved' | 'paid' | 'rejected';
+    createdAt: string
+}
+
+export type ProviderWithdrawalSummary = {
+    availableAmount: number;
+    withdrawals: ProviderWithdrawal[]
 }
 
 export type Booking = {
     _id: string;
     providerId?: string;
+    providerBusinessName?: string;
     customerId?: string;
     service: string;
     date: string;
@@ -31,7 +69,12 @@ export type Booking = {
     address: string;
     description?: string;
     amount?: number;
-    bookingStatus: 'pending' | 'accepted' | 'rejected' | 'on_the_way' | 'in_progress' | 'completed';
+    paymentMethod?: PaymentMethod;
+    urgent?: boolean;
+    bookingStatus: 'pending' | 'accepted' | 'rejected' | 'on_the_way' | 'in_progress' | 'completed' | 'cancelled';
+    paymentStatus?: string;
+    messages?: { senderId: string; senderRole: string; message: string; createdAt: string }[];
+    complaint?: { message: string; providerBusinessName?: string; status: string; createdAt: string };
     review?: {
         rating: number;
         comment: string
@@ -40,6 +83,13 @@ export type Booking = {
 
 export const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+})
+
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('servicehub_token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    else delete config.headers.Authorization
+    return config
 })
 
 export function setAuthToken(token: string | null) {
@@ -79,33 +129,28 @@ export async function getMyService() {
     return response.data.data
 }
 
-export async function saveMyService(payload: {
-    businessName: string;
-    category: string;
-    description: string;
-    city: string;
-    address: string;
-    pricing: string
-}) {
+export async function saveMyService(payload: ProviderServicePayload) {
     const response = await api.post<{ data: Provider }>('/providers/me', payload);
     return response.data.data
 }
 
-export async function updateMyService(payload: {
-    businessName: string;
-    category: string;
-    description: string;
-    city: string;
-    address: string;
-    pricing: string;
-    experience?: number
-}) {
+export async function updateMyService(payload: ProviderServicePayload) {
     const response = await api.put<{ data: Provider }>('/providers/me', payload);
     return response.data.data
 }
 
 export async function deleteMyService() {
     const response = await api.delete<{ data: Provider }>('/providers/me');
+    return response.data.data
+}
+
+export async function getProviderWithdrawals() {
+    const response = await api.get<{ data: ProviderWithdrawalSummary }>('/providers/withdrawals');
+    return response.data.data
+}
+
+export async function requestProviderWithdrawal(amount: number, payoutUpiId: string) {
+    const response = await api.post<{ data: { availableAmount: number; withdrawal: ProviderWithdrawal } }>('/providers/withdrawals', { amount, payoutUpiId });
     return response.data.data
 }
 
@@ -128,7 +173,9 @@ export async function createBooking(payload: {
     time: string;
     address: string;
     description: string;
-    amount: number
+    amount: number;
+    paymentMethod: PaymentMethod;
+    urgent?: boolean
 }) {
     const response = await api.post('/bookings', payload);
     return response.data
@@ -151,5 +198,30 @@ export async function updateBookingStatus(id: string, currentStatus: Booking['bo
 
 export async function submitReview(bookingId: string, rating: number, comment: string) {
     const response = await api.post<{ data: Booking }>(`/bookings/${bookingId}/review`, { rating, comment });
+    return response.data.data
+}
+
+export async function updateCustomerBooking(bookingId: string, action: 'cancel' | 'reschedule', date?: string, time?: string) {
+    const response = await api.put<{ data: Booking }>(`/bookings/${bookingId}/customer-action`, { action, date, time });
+    return response.data.data
+}
+
+export async function recordDemoPayment(bookingId: string) {
+    const response = await api.post<{ data: Booking }>(`/bookings/${bookingId}/payment`);
+    return response.data.data
+}
+
+export async function sendBookingMessage(bookingId: string, message: string) {
+    const response = await api.post<{ data: Booking }>(`/bookings/${bookingId}/messages`, { message });
+    return response.data.data
+}
+
+export async function getBookingMessages(bookingId: string) {
+    const response = await api.get<{ data: NonNullable<Booking['messages']> }>(`/bookings/${bookingId}/messages`);
+    return response.data.data
+}
+
+export async function submitBookingComplaint(bookingId: string, message: string) {
+    const response = await api.post<{ data: Booking }>(`/bookings/${bookingId}/complaint`, { message });
     return response.data.data
 }

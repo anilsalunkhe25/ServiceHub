@@ -3,7 +3,7 @@ import { ArrowRight, BadgeCheck, Heart, MapPin, Star } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Provider as ApiProvider } from '../api'
 
-export function ProviderCard({ provider, onBook }: { provider: ApiProvider; onBook: (provider: ApiProvider) => void }) {
+export function ProviderCard({ provider, onBook, onCompare, compared = false, compareDisabled = false }: { provider: ApiProvider; onBook: (provider: ApiProvider) => void; onCompare?: (provider: ApiProvider) => void; compared?: boolean; compareDisabled?: boolean }) {
   const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem(`favorite_${provider._id}`) || 'false'))
 
   const toggle = () => {
@@ -33,6 +33,9 @@ export function ProviderCard({ provider, onBook }: { provider: ApiProvider; onBo
         <p>
           <MapPin size={14} /> {provider.city} · {provider.totalReviews} reviews
         </p>
+        {provider.serviceAreas?.length ? <p className="provider-area-summary">Areas: {provider.serviceAreas.slice(0, 2).join(', ')}</p> : null}
+        {provider.pricingDetails && <small className="provider-rate-summary">{provider.pricingDetails}</small>}
+        {provider.isAvailable === false && <small className="provider-unavailable">Not accepting bookings</small>}
 
         {provider.isVerified && (
           <small className="verified">
@@ -46,7 +49,10 @@ export function ProviderCard({ provider, onBook }: { provider: ApiProvider; onBo
             <Link to={`/providers/${provider._id}`}>
               View profile <ArrowRight size={15} />
             </Link>
-            <button onClick={() => onBook(provider)}>Book</button>
+            {onCompare && <button className="compare-provider-button" aria-pressed={compared} disabled={compareDisabled && !compared} onClick={() => onCompare(provider)}>{compared ? 'Added' : 'Compare'}</button>}
+            <button onClick={() => onBook(provider)} disabled={provider.isFallback || provider.isAvailable === false} title={provider.isFallback ? 'Connect to the service API to book this provider' : undefined}>
+              {provider.isFallback || provider.isAvailable === false ? 'Unavailable' : 'Book'}
+            </button>
           </div>
         </div>
       </div>

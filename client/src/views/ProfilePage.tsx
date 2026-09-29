@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, BadgeCheck, Star } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Clock3, Star } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { Navigation } from '../components/Navigation'
 import { fallbackProviders } from '../data/mockData'
@@ -38,9 +38,15 @@ export function ProfilePage() {
                 <Star size={16} fill="currentColor" /> {provider.rating} · {provider.totalReviews} reviews
                 {provider.isVerified && <span><BadgeCheck size={15} /> Verified</span>}
               </div>
+              {provider.skills?.length ? <p><strong>Skills:</strong> {provider.skills.join(', ')}</p> : null}
+              {provider.serviceAreas?.length ? <p><strong>Service areas:</strong> {provider.serviceAreas.join(', ')}</p> : null}
+              {provider.pricingDetails && <p className="profile-rates"><strong>Rates:</strong> {provider.pricingDetails}</p>}
+              {provider.workingHours && <p className="profile-hours"><Clock3 size={14} /> {provider.workingHours.days.join(', ')} · {provider.workingHours.start}–{provider.workingHours.end}</p>}
+              {provider.isAvailable === false && <p className="provider-unavailable">Currently not accepting bookings</p>}
+              {provider.portfolioImages?.length ? <div className="profile-portfolio" aria-label="Portfolio photos">{provider.portfolioImages.map((image, index) => <img key={index} src={image} alt={`${provider.businessName} portfolio ${index + 1}`} />)}</div> : null}
             </div>
-            <button className="dark-button" onClick={() => setBooking(true)}>
-              Book service <ArrowRight size={16} />
+            <button className="dark-button" onClick={() => setBooking(true)} disabled={provider.isFallback || provider.isAvailable === false} title={provider.isFallback ? 'Connect to the service API to book this provider' : undefined}>
+              {provider.isAvailable === false ? 'Unavailable' : 'Book service'} <ArrowRight size={16} />
             </button>
           </div>
         </div>

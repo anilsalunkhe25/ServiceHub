@@ -1,4 +1,4 @@
-import type { Booking as ApiBooking } from '../../../api'
+import type { Booking as ApiBooking, PaymentMethod } from '../../../api'
 
 export type BookingRequestPayload = {
   providerId: string
@@ -8,6 +8,7 @@ export type BookingRequestPayload = {
   address: string
   description: string
   amount: number
+  paymentMethod: PaymentMethod
 }
 
 export type BookingRecord = ApiBooking

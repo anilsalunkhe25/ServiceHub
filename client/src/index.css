@@ -584,6 +584,27 @@ h2 span,
     align-items: center;
 }
 
+.provider-info .provider-area-summary {
+    display: block;
+    line-height: 1.4;
+}
+
+.provider-rate-summary {
+    display: block;
+    margin-top: 7px;
+    color: #66746d;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.provider-unavailable {
+    display: inline-block;
+    margin-top: 7px;
+    color: #a44732;
+    font-size: 11px;
+    font-weight: 700;
+}
+
 .provider-bottom {
     border-top: 1px solid #eef0ed;
     margin-top: 17px;
@@ -1494,6 +1515,43 @@ h2 span,
     gap: 14px;
 }
 
+.service-create-action,
+.service-summary {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+}
+
+.service-summary strong {
+    font-size: 17px;
+}
+
+.service-summary p {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 7px 0;
+}
+
+.service-summary small {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 12px;
+}
+
+.service-summary-actions,
+.service-form-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.service-form-actions .auth-submit {
+    margin-right: auto;
+}
+
 .editor-fields {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1677,4 +1735,488 @@ h2 span,
     margin-top: 10px;
     color: #e4a13a;
     font-size: 12px;
+}
+
+.compare-provider-button,
+.card-actions .compare-provider-button {
+    background: #e8f2ed;
+    color: var(--teal);
+}
+
+.compare-provider-button[aria-pressed="true"] {
+    background: var(--teal);
+    color: #fff;
+}
+
+.compare-provider-button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.results-toolbar > div {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.results-toolbar > div span {
+    color: var(--teal);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.comparison-panel {
+    margin-top: 28px;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #e5ebe6;
+    border-radius: 7px;
+    overflow-x: auto;
+}
+
+.comparison-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.comparison-heading h2 {
+    font-size: 22px;
+    margin: 0;
+}
+
+.comparison-heading button,
+.comparison-grid button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #dce7df;
+    border-radius: 5px;
+    background: #fff;
+    color: var(--teal);
+    padding: 8px 10px;
+    white-space: nowrap;
+}
+
+.comparison-grid {
+    display: grid;
+    min-width: 600px;
+    align-items: center;
+    font-size: 12px;
+}
+
+.comparison-grid > * {
+    min-width: 0;
+    padding: 12px 10px;
+    border-bottom: 1px solid #edf0ec;
+}
+
+.comparison-grid .compare-label {
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.comparison-grid strong {
+    color: var(--ink);
+}
+
+.emergency-booking-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    padding: 5px 8px;
+    background: #fff0e9;
+    color: #aa482d;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.booking-row-expanded {
+    flex-wrap: wrap;
+}
+
+.booking-row-expanded > div:first-of-type {
+    min-width: 220px;
+}
+
+.booking-row-side {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.payment-status,
+.complaint-status {
+    color: var(--teal);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.booking-complaint {
+    margin-top: 10px;
+    padding: 9px 11px;
+    border-left: 3px solid var(--coral);
+    background: #fff4ef;
+}
+
+.booking-complaint strong {
+    color: #9e432c;
+    font-size: 11px;
+}
+
+.booking-complaint p {
+    margin: 5px 0 0;
+    color: #594a45;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.customer-booking-actions {
+    display: flex;
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-left: 34px;
+}
+
+.customer-booking-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid #dce7df;
+    border-radius: 5px;
+    background: #fff;
+    color: var(--teal);
+    padding: 7px 9px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.customer-booking-actions .cancel-booking-action {
+    color: #a44732;
+    border-color: #f0d5cc;
+}
+
+.saved-providers-section {
+    margin-top: 68px;
+}
+
+.saved-provider-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #e3e9e4;
+    background: #fff;
+}
+
+.saved-provider-row > svg {
+    flex: 0 0 auto;
+    color: var(--coral);
+}
+
+.saved-provider-row > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.saved-provider-row p,
+.saved-providers-empty {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 5px 0 0;
+}
+
+.saved-provider-row a,
+.saved-provider-row button {
+    color: var(--teal);
+    background: transparent;
+    border: 0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.saved-provider-row button {
+    display: grid;
+    place-items: center;
+    padding: 6px;
+}
+
+.saved-providers-empty {
+    padding: 16px 0;
+}
+
+.customer-action-modal {
+    max-height: min(88vh, 760px);
+    overflow-y: auto;
+}
+
+.message-thread {
+    display: grid;
+    gap: 8px;
+    max-height: 270px;
+    overflow-y: auto;
+    padding: 12px 0;
+}
+
+.message-bubble {
+    display: grid;
+    gap: 4px;
+    justify-self: start;
+    max-width: 85%;
+    margin: 0;
+    padding: 10px 12px;
+    background: #f0f4f0;
+    border-radius: 5px;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.message-bubble.mine {
+    justify-self: end;
+    color: #fff;
+    background: var(--teal);
+}
+
+.message-bubble small {
+    font-size: 10px;
+    font-weight: 700;
+    opacity: .75;
+}
+
+.reschedule-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 600px) {
+    .comparison-panel {
+        width: calc(100% - 32px);
+        padding: 17px;
+    }
+
+    .booking-row-expanded > div:first-of-type {
+        flex-basis: calc(100% - 48px);
+    }
+
+    .booking-row-side {
+        margin-left: 34px;
+    }
+
+    .customer-booking-actions {
+        margin-left: 34px;
+    }
+
+    .saved-provider-row {
+        gap: 9px;
+        padding: 12px 8px;
+    }
+
+    .saved-provider-row p {
+        line-height: 1.5;
+    }
+
+    .reschedule-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+.profile-hours {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.profile-rates {
+    white-space: pre-line;
+}
+
+.profile-portfolio,
+.provider-portfolio-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.profile-portfolio img,
+.provider-portfolio-preview img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border: 1px solid #e2e9e3;
+    border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+    .profile-portfolio {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.provider-setting-group > span,
+.provider-portfolio-upload > label {
+    display: block;
+    margin-bottom: 7px;
+    color: #64736c;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.provider-day-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 13px;
+}
+
+.provider-day-picker label,
+.service-editor .provider-availability-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.provider-day-picker input,
+.service-editor .provider-availability-toggle input {
+    width: auto;
+    accent-color: var(--teal);
+}
+
+.provider-portfolio-upload > label input {
+    margin-top: 8px;
+}
+
+.portfolio-thumb {
+    position: relative;
+}
+
+.portfolio-thumb button {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 4px;
+    color: #fff;
+    background: rgba(21, 34, 31, .8);
+}
+
+.provider-review {
+    display: grid;
+    gap: 5px;
+    margin-top: 10px;
+    padding: 9px 11px;
+    background: #fff9e9;
+}
+
+.provider-review strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #9d7128;
+    font-size: 11px;
+}
+
+.provider-review p {
+    margin: 0;
+    color: #5e5544;
+    font-size: 12px;
+}
+
+.provider-earnings-panel {
+    display: grid;
+    grid-template-columns: .8fr 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+    margin-top: 28px;
+    padding: 24px;
+    border: 1px solid #e5ebe6;
+    border-radius: 7px;
+    background: #fff;
+}
+
+.provider-earnings-balance h2 {
+    margin: 0;
+    color: var(--teal);
+    font-size: 30px;
+}
+
+.provider-earnings-balance span,
+.provider-earnings-balance small,
+.provider-withdrawal-history p {
+    display: block;
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.provider-earnings-panel h3 {
+    margin: 0 0 13px;
+    font-size: 15px;
+}
+
+.provider-earnings-panel form {
+    display: grid;
+    gap: 10px;
+}
+
+.provider-earnings-panel form label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.provider-earnings-panel form input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #dce5de;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.provider-earnings-panel form button {
+    justify-content: center;
+}
+
+.provider-withdrawal-history > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid #edf0ec;
+    font-size: 11px;
+}
+
+.provider-withdrawal-history > div span {
+    overflow-wrap: anywhere;
+}
+
+.withdrawal-status {
+    color: #9d7128;
+    text-transform: capitalize;
+}
+
+.withdrawal-paid {
+    color: var(--teal);
+}
+
+.withdrawal-rejected {
+    color: #a44732;
+}
+
+@media (max-width: 800px) {
+    .provider-earnings-panel {
+        grid-template-columns: 1fr;
+    }
 }

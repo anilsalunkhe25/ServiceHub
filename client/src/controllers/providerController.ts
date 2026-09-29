@@ -12,7 +12,7 @@ import {
   updateBookingStatus,
   updateMyService,
 } from '../api'
-import type { Booking, Provider as ApiProvider } from '../api'
+import type { Booking, PaymentMethod, Provider as ApiProvider, ProviderServicePayload } from '../api'
 import { fallbackProviders } from '../data/mockData'
 
 export async function fetchProviders(params: { search?: string; city?: string; category?: string }) {
@@ -41,7 +41,7 @@ export async function fetchMyService() {
   }
 }
 
-export async function persistService(form: { businessName: string; category: string; description: string; city: string; address: string; pricing: string }, isEditing: boolean) {
+export async function persistService(form: ProviderServicePayload, isEditing: boolean) {
   const service = isEditing ? await updateMyService(form) : await saveMyService(form)
   localStorage.setItem('servicehub_my_service', JSON.stringify(service))
   return service
@@ -59,7 +59,9 @@ export async function createBookingRequest(payload: {
   time: string;
   address: string;
   description: string;
-  amount: number
+  amount: number;
+  paymentMethod: PaymentMethod;
+  urgent?: boolean
 }) {
   return createBooking(payload)
 }
