@@ -2,13 +2,28 @@ import { Router } from 'express'
 import { auth } from '../middleware/auth.js'
 import { Booking, Provider, Withdrawal, demoProviders, demoProviderServices, demoWithdrawals, databaseReady } from '../config/appState.js'
 import type { DemoProvider, DemoWithdrawal } from '../config/appState.js'
+import { normalizeServicePackages } from '../utils/paymentHelpers.js'
 
 const router = Router()
 
+const categoryVariants: Record<string, string[]> = {
+  'home repair': ['Home repair', 'Electrician', 'Electrical services', 'Home service', 'Home services'],
+  cleaning: ['Cleaning', 'Cleaning service', 'Cleaning services'],
+  'auto care': ['Auto care', 'Auto care services', 'Autocare'],
+}
+
+function matchingCategories(value: string) {
+  const normalized = value.trim().toLocaleLowerCase()
+  return categoryVariants[normalized] || [value.trim()]
+}
+
 function availableEarnings(completedBookings: { amount?: number | null }[], withdrawals: { amount: number; status: string }[]) {
   const earned = completedBookings.reduce((total, booking) => total + (booking.amount || 0), 0)
-  const reserved = withdrawals.filter((request) => ['pending', 'approved', 'paid'].includes(request.status)).reduce((total, request) => total + request.amount, 0)
-  return Math.max(0, earned - reserved)
+  const reserved = withdrawals.filter(
+    (request) => ['pending', 'approved', 'paid'].includes(request.status))
+    .reduce((total, request) => total + request.amount, 0)
+  
+    return Math.max(0, earned - reserved)
 }
 
 router.get('/withdrawals', auth('provider'), async (request, response, next) => {
@@ -69,15 +84,24 @@ router.post('/withdrawals', auth('provider'), async (request, response, next) =>
 
 router.post('/me', auth('provider'), async (request, response, next) => {
   try {
-    const { businessName, category, description, city, address, pricing, skills = [], serviceAreas = [], workingHours, pricingDetails = '', portfolioImages = [], isAvailable = true } = request.body
+    const { businessName, category, description, city, address, pricing, experience, packages: packageInput, skills = [], serviceAreas = [], workingHours, pricingDetails = '', portfolioImages = [], isAvailable = true } = request.body
 
     if (!businessName || !category || !city) {
       return response.status(400).json({ success: false, message: 'Business name, service type and city are required' })
+    }
+    if (experience !== undefined && (!Number.isInteger(Number(experience)) || Number(experience) < 0 || Number(experience) > 80)) {
+      return response.status(400).json({ success: false, message: 'Experience must be a whole number between 0 and 80 years' })
     }
 
     if (!Array.isArray(skills) || !Array.isArray(serviceAreas) || !Array.isArray(portfolioImages) || portfolioImages.length > 6 || portfolioImages.some((image: unknown) => typeof image !== 'string' || !image.startsWith('data:image/') || image.length > 650000)) {
       return response.status(400).json({ success: false, message: 'Use valid skills, service areas, and up to 6 compressed images' })
     }
+
+    const packages = normalizeServicePackages(packageInput)
+    if (!packages) return response.status(400).json({ success: false, message: 'Packages must have unique IDs, names, prices and up to 10 features each' })
+    const startingPrice = packages.length
+      ? `From ₹${(Math.min(...packages.map((item) => item.pricePaise)) / 100).toLocaleString('en-IN')}`
+      : String(pricing || '').slice(0, 120)
 
     if (!databaseReady) {
       const existing = demoProviderServices.find((item: DemoProvider) => item.userId === request.user?.id)
@@ -88,7 +112,9 @@ router.post('/me', auth('provider'), async (request, response, next) => {
         description,
         city,
         address,
-        pricing,
+        pricing: startingPrice,
+        experience: experience === undefined ? existing?.experience : Number(experience),
+        packages,
         skills,
         serviceAreas,
         workingHours,
@@ -105,7 +131,7 @@ router.post('/me', auth('provider'), async (request, response, next) => {
 
     const service = await Provider.findOneAndUpdate(
       { userId: request.user?.id },
-      { businessName, category, description, city, address, pricing, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable, isActive: true },
+      { businessName, category, description, city, address, pricing: startingPrice, experience: experience === undefined ? 0 : Number(experience), packages, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable, isActive: true },
       { new: true, upsert: true, setDefaultsOnInsert: true },
     )
 
@@ -134,15 +160,24 @@ router.get('/me', auth('provider'), async (request, response, next) => {
 
 router.put('/me', auth('provider'), async (request, response, next) => {
   try {
-    const { businessName, category, description, city, address, pricing, experience, skills = [], serviceAreas = [], workingHours, pricingDetails = '', portfolioImages = [], isAvailable = true } = request.body
+    const { businessName, category, description, city, address, pricing, experience, packages: packageInput, skills = [], serviceAreas = [], workingHours, pricingDetails = '', portfolioImages = [], isAvailable = true } = request.body
 
     if (!businessName || !category || !city) {
       return response.status(400).json({ success: false, message: 'Business name, service type and city are required' })
+    }
+    if (experience !== undefined && (!Number.isInteger(Number(experience)) || Number(experience) < 0 || Number(experience) > 80)) {
+      return response.status(400).json({ success: false, message: 'Experience must be a whole number between 0 and 80 years' })
     }
 
     if (!Array.isArray(skills) || !Array.isArray(serviceAreas) || !Array.isArray(portfolioImages) || portfolioImages.length > 6 || portfolioImages.some((image: unknown) => typeof image !== 'string' || !image.startsWith('data:image/') || image.length > 650000)) {
       return response.status(400).json({ success: false, message: 'Use valid skills, service areas, and up to 6 compressed images' })
     }
+
+    const packages = normalizeServicePackages(packageInput)
+    if (!packages) return response.status(400).json({ success: false, message: 'Packages must have unique IDs, names, prices and up to 10 features each' })
+    const startingPrice = packages.length
+      ? `From ₹${(Math.min(...packages.map((item) => item.pricePaise)) / 100).toLocaleString('en-IN')}`
+      : String(pricing || '').slice(0, 120)
 
     if (!databaseReady) {
       const existing = demoProviderServices.find((item: DemoProvider) => item.userId === request.user?.id)
@@ -150,13 +185,13 @@ router.put('/me', auth('provider'), async (request, response, next) => {
         return response.status(404).json({ success: false, message: 'Service not found' })
       }
 
-      Object.assign(existing, { businessName, category, description, city, address, pricing, experience, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable })
+      Object.assign(existing, { businessName, category, description, city, address, pricing: startingPrice, packages, experience, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable })
       return response.json({ success: true, message: 'Service updated successfully', data: existing })
     }
 
     const service = await Provider.findOneAndUpdate(
       { userId: request.user?.id },
-      { businessName, category, description, city, address, pricing, experience, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable },
+      { businessName, category, description, city, address, pricing: startingPrice, packages, experience, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable },
       { new: true },
     )
 
@@ -197,15 +232,30 @@ router.delete('/me', auth('provider'), async (request, response, next) => {
 
 router.get('/', async (request, response, next) => {
   try {
-    const filter: Record<string, unknown> = {
+    const clauses: Record<string, unknown>[] = [{
       businessName: { $exists: true, $ne: '' },
       category: { $exists: true, $ne: '' },
       city: { $exists: true, $ne: '' },
       isAvailable: { $ne: false },
-      ...(request.query.city ? { city: request.query.city } : {}),
-      ...(request.query.category ? { category: request.query.category } : {}),
-      ...(request.query.search ? { $or: [{ businessName: { $regex: request.query.search, $options: 'i' } }, { category: { $regex: request.query.search, $options: 'i' } }] } : {}),
-    }
+    }]
+    if (request.query.city) clauses.push({ city: request.query.city })
+    const requestedCategory = request.query.category ? String(request.query.category) : ''
+    const categoryValues = requestedCategory ? matchingCategories(requestedCategory) : []
+    if (categoryValues.length) clauses.push({ category: { $in: categoryValues } })
+    if (request.query.search) clauses.push({
+      $or: [
+        { businessName: { $regex: request.query.search, $options: 'i' } },
+        { category: { $regex: request.query.search, $options: 'i' } },
+        { description: { $regex: request.query.search, $options: 'i' } },
+        { skills: { $regex: request.query.search, $options: 'i' } },
+      ]
+    })
+    if (request.query.area) clauses.push({
+      $or: [
+        { city: { $regex: request.query.area, $options: 'i' } },
+        { serviceAreas: { $regex: request.query.area, $options: 'i' } },
+      ]
+    })
 
     if (!databaseReady) {
       const allProviders = [...demoProviders, ...demoProviderServices]
@@ -213,15 +263,36 @@ router.get('/', async (request, response, next) => {
       const results = allProviders.filter((provider: DemoProvider) =>
         provider.isAvailable !== false &&
         (!request.query.city || provider.city === request.query.city) &&
-        (!request.query.category || provider.category === request.query.category) &&
-        (!request.query.search || [provider.businessName, provider.category].some((value) => String(value).toLowerCase().includes(String(request.query.search).toLowerCase()))),
+        (!categoryValues.length || categoryValues.includes(provider.category)) &&
+        (!request.query.area || [provider.city, ...(provider.serviceAreas || [])].some((value) => String(value).toLowerCase().includes(String(request.query.area).toLowerCase()))) &&
+        (!request.query.search || [provider.businessName, provider.category, provider.description, ...(provider.skills || [])].some((value) => String(value || '').toLowerCase().includes(String(request.query.search).toLowerCase()))),
       )
-
-      return response.json({ success: true, data: results })
+      const bookings = (await import('../config/appState.js')).demoBookings
+      const data = results.map((provider) => {
+        const providerBookings = bookings.filter((booking) => booking.providerId === provider._id)
+        const responded = providerBookings.filter((booking) => !['pending', 'cancelled'].includes(booking.bookingStatus)).length
+        return { ...provider, completedJobs: providerBookings.filter((booking) => booking.bookingStatus === 'completed').length, responseRate: providerBookings.length ? Math.round(responded / providerBookings.length * 100) : null }
+      })
+      return response.json({ success: true, data })
     }
 
-    const results = await Provider.find(Object.keys(filter).length ? (filter as Record<string, unknown>) : {}).sort({ updatedAt: -1 }).limit(50)
-    response.json({ success: true, data: results })
+    const results = await Provider.find({ $and: clauses }).sort({ updatedAt: -1 }).limit(50)
+    const providerIds = results.map((provider) => provider._id)
+    const bookings = providerIds.length ? await Booking.find({ providerId: { $in: providerIds } }).select('providerId bookingStatus').lean() : []
+    const grouped = new Map<string, { completed: number; total: number; responded: number }>()
+    for (const booking of bookings) {
+      const key = String(booking.providerId)
+      const stats = grouped.get(key) || { completed: 0, total: 0, responded: 0 }
+      stats.total += 1
+      if (booking.bookingStatus === 'completed') stats.completed += 1
+      if (!['pending', 'cancelled'].includes(booking.bookingStatus)) stats.responded += 1
+      grouped.set(key, stats)
+    }
+    const data = results.map((provider) => {
+      const stats = grouped.get(String(provider._id))
+      return { ...provider.toObject(), completedJobs: stats?.completed || 0, responseRate: stats?.total ? Math.round(stats.responded / stats.total * 100) : null }
+    })
+    response.json({ success: true, data })
   } catch (error) {
     next(error)
   }

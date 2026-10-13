@@ -5,6 +5,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import routes from './routes/index.js'
+import { processRazorpayWebhook } from './controllers/webhookController.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { setDatabaseReady } from './config/appState.js'
 
@@ -15,8 +16,9 @@ const allowedClientOrigins = [process.env.CLIENT_URL, 'http://localhost:5173', '
 
 app.use(helmet())
 app.use(cors({ origin: allowedClientOrigins }))
-app.use(express.json({ limit: '5mb' }))
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 200 }))
+app.post('/api/payments/webhook', express.raw({ type: 'application/json', limit: '1mb' }), processRazorpayWebhook)
+app.use(express.json({ limit: '5mb' }))
 
 if (process.env.MONGODB_URI) {
   mongoose.connect(process.env.MONGODB_URI)

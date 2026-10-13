@@ -3,8 +3,9 @@ import { ArrowRight, BadgeCheck, Heart, MapPin, Star } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Provider as ApiProvider } from '../api'
 
-export function ProviderCard({ provider, onBook, onCompare, compared = false, compareDisabled = false }: { provider: ApiProvider; onBook: (provider: ApiProvider) => void; onCompare?: (provider: ApiProvider) => void; compared?: boolean; compareDisabled?: boolean }) {
-  const [saved, setSaved] = useState(() => JSON.parse(localStorage.getItem(`favorite_${provider._id}`) || 'false'))
+export function ProviderCard({ provider, onBook, onCompare, compared = false, compareDisabled = false, matchScore, matchReasons = [] }: { provider: ApiProvider; onBook: (provider: ApiProvider) => void; onCompare?: (provider: ApiProvider) => void; compared?: boolean; compareDisabled?: boolean; matchScore?: number; matchReasons?: string[] }) {
+  const [saved, setSaved] = useState(() => 
+    JSON.parse(localStorage.getItem(`favorite_${provider._id}`) || 'false'))
 
   const toggle = () => {
     const next = !saved
@@ -28,6 +29,11 @@ export function ProviderCard({ provider, onBook, onCompare, compared = false, co
             <Star size={13} fill="currentColor" /> {provider.rating}
           </b>
         </div>
+
+        {matchScore !== undefined && <div className="provider-match-summary">
+          <strong>Best match · {matchScore}%</strong>
+          {matchReasons.length > 0 && <small>{matchReasons.join(' · ')}</small>}
+        </div>}
 
         <h3>{provider.businessName}</h3>
         <p>

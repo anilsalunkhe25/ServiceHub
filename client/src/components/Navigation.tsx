@@ -29,6 +29,8 @@ export function Navigation() {
 
           {user ? (
             <>
+              {user.role === 'customer' && <Link to="/payments">Payment history</Link>}
+              {user.role === 'admin' && <Link to="/admin/payments">Payment administration</Link>}
               <Link to="/dashboard" className="user-link">
                 <UserRound size={15} /> {user.name.split(' ')[0]}
               </Link>

@@ -16,7 +16,11 @@ export type Provider = {
     address?: string;
     rating: number;
     totalReviews: number;
+    experience?: number;
+    completedJobs?: number;
+    responseRate?: number | null;
     pricing?: string;
+    packages?: ServicePackage[];
     isVerified?: boolean;
     isFallback?: boolean;
     description?: string;
@@ -28,6 +32,13 @@ export type Provider = {
     isAvailable?: boolean
 }
 
+export type ServicePackage = {
+    id: string;
+    name: string;
+    features: string[];
+    pricePaise: number
+}
+
 export type ProviderServicePayload = {
     businessName: string;
     category: string;
@@ -35,6 +46,8 @@ export type ProviderServicePayload = {
     city: string;
     address: string;
     pricing: string;
+    experience?: number;
+    packages?: ServicePackage[];
     skills?: string[];
     serviceAreas?: string[];
     workingHours?: { days: string[]; start: string; end: string };
@@ -43,7 +56,7 @@ export type ProviderServicePayload = {
     isAvailable?: boolean
 }
 
-export type PaymentMethod = 'cash_on_delivery' | 'upi'
+export type PaymentMethod = 'cash_on_delivery' | 'upi' | 'online'
 
 export type ProviderWithdrawal = {
     _id: string;
@@ -69,6 +82,8 @@ export type Booking = {
     address: string;
     description?: string;
     amount?: number;
+    servicePackageId?: string;
+    servicePackageName?: string;
     paymentMethod?: PaymentMethod;
     urgent?: boolean;
     bookingStatus: 'pending' | 'accepted' | 'rejected' | 'on_the_way' | 'in_progress' | 'completed' | 'cancelled';
@@ -79,6 +94,45 @@ export type Booking = {
         rating: number;
         comment: string
     }
+}
+
+export type PaymentStatus = 'pending' | 'created' | 'paid' | 'failed' | 'refunded'
+
+export type PaymentTransaction = {
+    _id: string;
+    customerId: string;
+    bookingId?: string;
+    providerId: string;
+    bookingDetails: { service: string; providerBusinessName: string; packageId?: string; packageName?: string; date: string; time: string; address: string; description: string; urgent: boolean };
+    amountPaise: number;
+    taxPaise: number;
+    feePaise: number;
+    currency: string;
+    gateway: 'razorpay';
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    paymentMethod?: string;
+    status: PaymentStatus;
+    attempts: { orderId: string; paymentId?: string; status: string; method?: string; createdAt: string }[];
+    refunds: { requestId: string; razorpayRefundId?: string; amountPaise: number; reason: string; status: string; createdAt: string; updatedAt: string }[];
+    createdAt: string;
+    updatedAt: string
+}
+
+export type PaymentCheckout = {
+    payment: PaymentTransaction;
+    checkout: { keyId: string; orderId: string; amount: number; currency: string };
+    summary: { service: string; provider: string; packageName?: string; basePricePaise: number; taxPaise: number; feePaise: number; totalPaise: number }
+}
+
+export type PaymentBookingDraft = {
+    providerId: string;
+    packageId?: string;
+    date: string;
+    time: string;
+    address: string;
+    description: string;
+    urgent?: boolean
 }
 
 export const api = axios.create({
@@ -114,7 +168,7 @@ export async function register(payload: {
     return response.data.data
 }
 
-export async function getProviders(params: { search?: string; city?: string; category?: string }) {
+export async function getProviders(params: { search?: string; city?: string; category?: string; area?: string }) {
     const response = await api.get<{ data: Provider[] }>('/providers', { params });
     return response.data.data
 }
@@ -168,16 +222,55 @@ export async function getCustomerDetails(bookingId: string) {
 
 export async function createBooking(payload: {
     providerId: string;
-    service: string;
     date: string;
     time: string;
     address: string;
     description: string;
     amount: number;
     paymentMethod: PaymentMethod;
+    packageId?: string;
     urgent?: boolean
 }) {
     const response = await api.post('/bookings', payload);
+    return response.data
+}
+
+export async function createPaymentOrder(booking: PaymentBookingDraft, idempotencyKey: string) {
+    const response = await api.post<{ data: PaymentCheckout }>('/payments/create-order', { booking }, { headers: { 'Idempotency-Key': idempotencyKey } });
+    return response.data.data
+}
+
+export async function verifyPayment(paymentId: string, gatewayPayment: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string
+}) {
+    const response = await api.post<{ data: { payment: PaymentTransaction; bookingId: string } }>('/payments/verify', { paymentId, ...gatewayPayment });
+    return response.data.data
+}
+
+export async function getPayment(paymentId: string) {
+    const response = await api.get<{ data: PaymentTransaction }>(`/payments/${paymentId}`);
+    return response.data.data
+}
+
+export async function getMyPayments() {
+    const response = await api.get<{ data: PaymentTransaction[] }>('/payments/my-payments');
+    return response.data.data
+}
+
+export async function getAdminPayments() {
+    const response = await api.get<{ data: PaymentTransaction[] }>('/payments/admin');
+    return response.data.data
+}
+
+export async function retryPayment(paymentId: string) {
+    const response = await api.post<{ data: PaymentCheckout }>(`/payments/${paymentId}/retry`);
+    return response.data.data
+}
+
+export async function requestPaymentRefund(paymentId: string, requestId: string, reason: string, amountPaise?: number) {
+    const response = await api.post<{ data: { payment: PaymentTransaction; refund: PaymentTransaction['refunds'][number] } }>(`/payments/${paymentId}/refund`, { requestId, reason, amountPaise });
     return response.data
 }
 
@@ -196,6 +289,11 @@ export async function updateBookingStatus(id: string, currentStatus: Booking['bo
     return response.data.data
 }
 
+export async function updateCashPaymentStatus(id: string, paymentStatus: 'pending' | 'paid') {
+    const response = await api.put<{ data: Booking }>(`/bookings/${id}/cod-payment`, { paymentStatus });
+    return response.data.data
+}
+
 export async function submitReview(bookingId: string, rating: number, comment: string) {
     const response = await api.post<{ data: Booking }>(`/bookings/${bookingId}/review`, { rating, comment });
     return response.data.data
@@ -203,11 +301,6 @@ export async function submitReview(bookingId: string, rating: number, comment: s
 
 export async function updateCustomerBooking(bookingId: string, action: 'cancel' | 'reschedule', date?: string, time?: string) {
     const response = await api.put<{ data: Booking }>(`/bookings/${bookingId}/customer-action`, { action, date, time });
-    return response.data.data
-}
-
-export async function recordDemoPayment(bookingId: string) {
-    const response = await api.post<{ data: Booking }>(`/bookings/${bookingId}/payment`);
     return response.data.data
 }
 

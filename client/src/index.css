@@ -122,7 +122,8 @@ button {
 .hero {
     overflow: hidden;
     position: relative;
-    background: #f7f7f2;
+    background: linear-gradient(120deg, rgba(247, 247, 242, 0.88), rgba(247, 247, 242, 0.76)),
+        url('/bikerepair.jpeg') center/cover no-repeat;
     padding: 86px 0 106px;
 }
 
@@ -485,6 +486,13 @@ h2 span,
     font-size: 11px;
 }
 
+.category-item .category-services {
+    color: #65736d;
+    font-size: 10px;
+    line-height: 1.4;
+    margin-top: 3px;
+}
+
 .category-item>svg {
     color: #a6b0aa;
 }
@@ -543,6 +551,26 @@ h2 span,
 
 .provider-info {
     padding: 17px 18px 19px;
+}
+
+.provider-match-summary {
+    display: grid;
+    gap: 4px;
+    margin: 11px 0 5px;
+    padding: 8px 10px;
+    border-left: 3px solid var(--teal);
+    background: #edf6f1;
+}
+
+.provider-match-summary strong {
+    color: var(--teal);
+    font-size: 12px;
+}
+
+.provider-match-summary small {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 .provider-meta,
@@ -1078,13 +1106,19 @@ h2 span,
     inset: 0;
     z-index: 10;
     background: rgba(21, 34, 31, .46);
-    display: grid;
-    place-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
     padding: 20px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .modal {
     width: min(100%, 470px);
+    flex: 0 0 auto;
+    margin-block: auto;
     background: #fff;
     border-radius: 10px;
     padding: 33px;
@@ -1839,6 +1873,354 @@ h2 span,
     flex-wrap: wrap;
 }
 
+.booking-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.payment-summary {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0;
+    padding: 14px;
+    border: 1px solid #dfe5df;
+    background: #fbfcf9;
+}
+
+.package-editor-section {
+    display: grid;
+    gap: 12px;
+}
+
+.package-editor-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.package-editor-heading p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.package-editor {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.5fr);
+    gap: 12px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #dfe5df;
+}
+
+.package-editor legend {
+    padding: 0 6px;
+    color: var(--teal);
+    font-weight: 700;
+}
+
+.package-editor .package-features-field,
+.package-editor > button {
+    grid-column: 1 / -1;
+}
+
+.booking-package-choice {
+    display: grid;
+    gap: 9px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.booking-package-choice legend {
+    margin-bottom: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.booking-package-option {
+    display: grid !important;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px !important;
+    padding: 12px;
+    border: 1px solid #dfe5df;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.booking-package-option.is-selected {
+    border-color: var(--teal);
+    background: #f1f8f4;
+}
+
+.booking-package-option input {
+    width: 16px !important;
+    height: 16px;
+    margin: 2px 0 0;
+    accent-color: var(--teal);
+}
+
+.booking-package-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 10px;
+}
+
+.booking-package-copy small {
+    grid-column: 1 / -1;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+.profile-packages {
+    margin: 22px 0;
+}
+
+.profile-packages h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+}
+
+.profile-package-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.profile-package {
+    padding: 14px;
+    border: 1px solid #dfe5df;
+    background: #fbfcf9;
+}
+
+.profile-package > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.profile-package h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.profile-package ul {
+    padding-left: 18px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.payment-summary > div,
+.payment-details > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.payment-summary span,
+.payment-details dt {
+    color: var(--muted);
+}
+
+.payment-summary strong,
+.payment-details dd {
+    text-align: right;
+}
+
+.payment-summary-total {
+    padding-top: 10px;
+    border-top: 1px solid #dfe5df;
+    font-size: 17px;
+}
+
+.payment-page {
+    max-width: 760px;
+    min-height: 65vh;
+    padding-top: 40px;
+    padding-bottom: 80px;
+}
+
+.payment-page h1 {
+    margin: 12px 0 22px;
+    font-family: 'Fraunces', serif;
+    font-size: 36px;
+}
+
+.payment-page .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.payment-details {
+    display: grid;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.payment-details dd {
+    max-width: 65%;
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-weight: 600;
+}
+
+.payment-page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin-top: 22px;
+}
+
+.payment-history-list {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-payment-page {
+    max-width: 900px;
+}
+
+.admin-payment-row {
+    padding: 16px 0;
+    border-bottom: 1px solid #dfe5df;
+}
+
+.admin-payment-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.admin-payment-row p {
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+
+.admin-refund-form {
+    display: grid;
+    grid-template-columns: minmax(140px, 0.7fr) minmax(180px, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.admin-refund-form label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.admin-refund-form input {
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid #cfd8d1;
+}
+
+.payment-history-row {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto auto 18px;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-bottom: 1px solid #dfe5df;
+}
+
+.payment-history-row > span {
+    display: grid;
+    gap: 4px;
+}
+
+.payment-history-row small {
+    color: var(--muted);
+}
+
+.payment-state {
+    width: fit-content;
+    padding: 5px 9px;
+    border-radius: 3px;
+    background: var(--mint);
+    color: var(--teal);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.payment-state-failed {
+    background: #fff0e9;
+    color: #aa482d;
+}
+
+.payment-state-refunded {
+    background: #eef0f0;
+    color: #46514d;
+}
+
+.payment-spinner {
+    animation: payment-spin 0.8s linear infinite;
+}
+
+@keyframes payment-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+    .package-editor {
+        grid-template-columns: 1fr;
+    }
+
+    .package-editor .package-features-field,
+    .package-editor > button {
+        grid-column: auto;
+    }
+
+    .package-editor-heading {
+        align-items: flex-start;
+    }
+
+    .booking-package-copy {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .booking-package-copy small {
+        grid-column: auto;
+    }
+
+    .admin-refund-form {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-history-row {
+        grid-template-columns: 22px minmax(0, 1fr) auto;
+    }
+
+    .payment-history-row > strong {
+        grid-column: 2;
+    }
+
+    .payment-history-row > .payment-state {
+        grid-column: 2;
+    }
+
+    .payment-history-row > svg:last-child {
+        grid-column: 3;
+        grid-row: 1;
+    }
+}
+
 .booking-row-expanded > div:first-of-type {
     min-width: 220px;
 }
@@ -2219,4 +2601,33 @@ h2 span,
     .provider-earnings-panel {
         grid-template-columns: 1fr;
     }
+}
+
+.results-layout input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    border-bottom: 1px solid #d6ded8;
+    border-radius: 0;
+    background: transparent;
+    padding: 4px 0 10px;
+    color: var(--ink);
+    outline: 0;
+    font-size: 12px;
+}
+
+.results-layout input:focus,
+.results-layout select:focus {
+    border-color: var(--teal);
+}
+
+.match-explanation {
+    margin: -8px 0 18px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.match-empty-state {
+    grid-column: 1 / -1;
 }

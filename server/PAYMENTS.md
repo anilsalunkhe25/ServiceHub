@@ -1,0 +1,72 @@
+# Razorpay Payments
+
+## Configuration
+
+The server uses `PORT` (default `5000`), `MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET`. Copy the root example into the server directory and fill it with local values:
+
+```powershell
+Copy-Item ..\.env.example .env
+```
+
+Use Razorpay **Test Mode** API keys while developing. Keep the key secret and webhook secret only in `server/.env`; the frontend receives only the public key ID. MongoDB must be connected for payment creation and confirmation. Current provider pricing is stored as text, so the server charges the first listed price. Taxes and platform fees are currently zero until the product defines them.
+
+## Webhook Setup
+
+In the Razorpay Dashboard's Test Mode, add a webhook pointing to:
+
+```text
+https://<your-public-development-tunnel>/api/payments/webhook
+```
+
+Use a local tunnel for development because Razorpay cannot call `localhost`. Set the webhook's generated secret as `RAZORPAY_WEBHOOK_SECRET`, then subscribe to `payment.captured`, `payment.failed`, `refund.processed`, and `refund.failed`. Restart the server after changing environment variables. The endpoint verifies the HMAC against the exact raw request body before parsing JSON.
+
+## Run
+
+From the repository root, use separate terminals:
+
+```powershell
+cd server
+npm install
+npm run dev
+```
+
+```powershell
+cd client
+npm install
+npm run dev
+```
+
+The client defaults to `http://localhost:5000/api`; set `VITE_API_URL` in `client/.env` only if the backend uses a different URL. The server defaults to `http://localhost:5000` and the client to `http://localhost:5173`.
+
+## Test Workflow
+
+1. Create a customer account and a provider with a valid listed price.
+2. In the booking dialog, choose online payment, enter the service details, and select **Pay now**.
+3. Complete the transaction with Razorpay test-mode instruments. The server verifies the payment with Razorpay before creating the booking.
+4. Check `/payment/status/<payment-id>` or **Payment history**. Refreshing this page asks the server to reconcile with Razorpay.
+5. Test failed and closed Checkout flows, then retry from the payment status page.
+6. Log in as an admin and open `/admin/payments` to request full or partial refunds. The booking is marked refunded only after Razorpay confirms the full refund.
+7. For customer isolation, request another customer's payment ID while authenticated as the first customer; the API returns not found.
+
+The admin API and page require an existing user whose database role is `admin`. Public registration cannot create admin accounts. To promote a trusted account, update it directly in MongoDB:
+
+```javascript
+db.users.updateOne({ email: "admin@example.com" }, { $set: { role: "admin" } })
+```
+
+Do not use the repository's demo seed password or promote accounts through a public endpoint.
+
+## Verification
+
+From `server/`, run `npm test` for local amount parsing, payment/webhook signature, retry, refund-balance, and duplicate-intent helper tests. Run `npm run build` in both `server/` and `client/`. End-to-end gateway tests require Razorpay test keys, a connected MongoDB database, and a reachable webhook tunnel; never use live keys for development tests.
+
+## API
+
+- `POST /api/payments/create-order` (customer; send an `Idempotency-Key` header and booking draft)
+- `POST /api/payments/verify` (customer; verify the Checkout signature and gateway capture)
+- `GET /api/payments/:paymentId` (own payment; reconciles status with Razorpay)
+- `GET /api/payments/my-payments` (customer payment history)
+- `GET /api/payments/admin` (admin payment list)
+- `POST /api/payments/:paymentId/retry` (owner; eligible unpaid payments only)
+- `POST /api/payments/:paymentId/refund` (admin; captured payments only; optional `amountPaise` for a partial refund)
+- `POST /api/payments/webhook` (Razorpay signature required; raw request body)

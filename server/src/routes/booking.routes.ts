@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import { auth } from '../middleware/auth.js'
-
 import {
     Booking,
     Provider,
@@ -11,6 +10,7 @@ import {
     demoProviderServices,
 } from '../config/appState.js'
 import type { DemoBooking, DemoProvider } from '../config/appState.js'
+import { getBasePricePaise, verifyRazorpayPaymentSignature } from '../utils/paymentHelpers.js'
 
 const router = Router()
 
@@ -56,33 +56,38 @@ router.get('/:bookingId/customer', auth('provider'), async (request, response, n
 
 router.post('/', auth('customer'), async (request, response, next) => {
     try {
-        const { providerId, service, date, time, address, description, amount, paymentMethod, urgent } = request.body
+        const { providerId, service, date, time, address, description, paymentMethod, urgent, packageId } = request.body
 
         if (!providerId || !service || !date || !time || !address) {
             return response.status(400).json({ success: false, message: 'Provider, service, date, time and address are required' })
         }
 
-        if (paymentMethod !== undefined && !['cash_on_delivery', 'upi'].includes(paymentMethod)) {
-            return response.status(400).json({ success: false, message: 'Choose Cash on delivery or UPI' })
+        if (paymentMethod !== undefined && paymentMethod !== 'cash_on_delivery') {
+            return response.status(400).json({ success: false, message: 'Online bookings must use the verified payment flow' })
         }
 
-        const selectedPaymentMethod = paymentMethod || 'cash_on_delivery'
+        const selectedPaymentMethod = 'cash_on_delivery' as const
 
         if (!databaseReady) {
             const provider = [...demoProviders, ...demoProviderServices].find((item: DemoProvider) => item._id === providerId)
             if (!provider) return response.status(404).json({ success: false, message: 'Service provider not found' })
+            const selectedPackage = packageId ? provider.packages?.find((item) => item.id === packageId) : undefined
+            if ((provider.packages?.length && !selectedPackage) || (packageId && !selectedPackage)) return response.status(400).json({ success: false, message: 'Select a valid service package' })
+            const amount = (selectedPackage?.pricePaise ?? getBasePricePaise(provider.pricing) ?? 0) / 100
 
             const booking = {
                 _id: `demo-booking-${Date.now()}`,
                 providerId,
                 providerBusinessName: provider.businessName,
                 customerId: request.user?.id,
-                service,
+                service: provider.category,
                 date,
                 time,
                 address,
                 description,
                 amount,
+                servicePackageId: selectedPackage?.id,
+                servicePackageName: selectedPackage?.name,
                 paymentMethod: selectedPaymentMethod,
                 urgent: Boolean(urgent),
                 bookingStatus: 'pending',
@@ -104,16 +109,21 @@ router.post('/', auth('customer'), async (request, response, next) => {
         if (provider.isAvailable === false) {
             return response.status(409).json({ success: false, message: 'This provider is not currently accepting bookings' })
         }
+        const selectedPackage = packageId ? provider.packages?.find((item) => item.id === packageId) : undefined
+        if ((provider.packages?.length && !selectedPackage) || (packageId && !selectedPackage)) return response.status(400).json({ success: false, message: 'Select a valid service package' })
+        const amount = (selectedPackage?.pricePaise ?? getBasePricePaise(provider.pricing) ?? 0) / 100
 
         const booking = await Booking.create({
             providerId: provider._id,
             providerBusinessName: provider.businessName,
-            service,
+            service: provider.category,
             date,
             time,
             address,
             description,
             amount,
+            servicePackageId: selectedPackage?.id,
+            servicePackageName: selectedPackage?.name,
             paymentMethod: selectedPaymentMethod,
             urgent: Boolean(urgent),
             customerId: request.user?.id,
@@ -151,6 +161,42 @@ router.get('/provider', auth('provider'), async (request, response, next) => {
 
         const bookings = await Booking.find({ providerId: provider._id }).sort({ createdAt: -1 })
         response.json({ success: true, data: bookings })
+    } catch (error) {
+        next(error)
+    }
+})
+
+router.put('/:id/cod-payment', auth('provider'), async (request, response, next) => {
+    try {
+        const paymentStatus = request.body.paymentStatus
+        if (!['pending', 'paid'].includes(paymentStatus)) {
+            return response.status(400).json({ success: false, message: 'Cash payment status must be pending or paid' })
+        }
+
+        if (!databaseReady) {
+            const provider = demoProviderServices.find((item) => item.userId === request.user?.id)
+            const booking = demoBookings.find((item: DemoBooking) => item._id === request.params.id && item.providerId === provider?._id)
+            if (!booking || booking.paymentMethod === 'online' || booking.paymentMethod === 'upi' || ['cancelled', 'rejected'].includes(booking.bookingStatus)) {
+                return response.status(404).json({ success: false, message: 'Cash booking not found' })
+            }
+            booking.paymentStatus = paymentStatus
+            return response.json({ success: true, message: 'Cash payment status updated', data: booking })
+        }
+
+        const provider = await Provider.findOne({ userId: request.user?.id })
+        if (!provider) return response.status(404).json({ success: false, message: 'Provider service not found' })
+        const booking = await Booking.findOneAndUpdate(
+            {
+                _id: request.params.id,
+                providerId: provider._id,
+                $or: [{ paymentMethod: 'cash_on_delivery' }, { paymentMethod: { $exists: false } }],
+                bookingStatus: { $nin: ['cancelled', 'rejected'] },
+            },
+            { $set: { paymentStatus } },
+            { new: true },
+        )
+        if (!booking) return response.status(404).json({ success: false, message: 'Cash booking not found' })
+        response.json({ success: true, message: 'Cash payment status updated', data: booking })
     } catch (error) {
         next(error)
     }
@@ -226,33 +272,6 @@ router.put('/:id/customer-action', auth('customer'), async (request, response, n
         const booking = await Booking.findOneAndUpdate(filter, update, { new: true })
         if (!booking) return response.status(404).json({ success: false, message: 'Booking not found or no longer changeable' })
         response.json({ success: true, message: 'Booking updated', data: booking })
-    } catch (error) {
-        next(error)
-    }
-})
-
-router.post('/:id/payment', auth('customer'), async (request, response, next) => {
-    try {
-        if (!databaseReady) {
-            const booking = demoBookings.find((item: DemoBooking) => item._id === request.params.id && item.customerId === request.user?.id)
-            if (!booking) return response.status(404).json({ success: false, message: 'Booking not found' })
-            if (booking.paymentMethod !== 'upi') {
-                return response.status(400).json({ success: false, message: 'This booking is set to Cash on delivery' })
-            }
-            if (['cancelled', 'rejected'].includes(booking.bookingStatus)) {
-                return response.status(400).json({ success: false, message: 'This booking cannot be paid' })
-            }
-            Object.assign(booking, { paymentStatus: 'paid' })
-            return response.json({ success: true, message: 'Demo payment recorded', data: booking })
-        }
-
-        const booking = await Booking.findOneAndUpdate(
-            { _id: request.params.id, customerId: request.user?.id, paymentMethod: 'upi', bookingStatus: { $nin: ['cancelled', 'rejected'] } },
-            { paymentStatus: 'paid' },
-            { new: true },
-        )
-        if (!booking) return response.status(404).json({ success: false, message: 'Booking not found or cannot be paid' })
-        response.json({ success: true, message: 'Demo payment recorded', data: booking })
     } catch (error) {
         next(error)
     }

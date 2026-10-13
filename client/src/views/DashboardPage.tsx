@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, ArrowRight, Ban, CalendarDays, CalendarClock, Check, Clock3, CreditCard, FileText, Heart, LoaderCircle, LogOut, MessageCircle, Send, Star, Trash2, X, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Ban, CalendarDays, CalendarClock, Check, Clock3, FileText, Heart, LoaderCircle, LogOut, MessageCircle, Plus, Send, Star, Trash2, X, XCircle } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { Navigation } from '../components/Navigation'
-import { getBookingMessages, getProviderWithdrawals, recordDemoPayment, requestProviderWithdrawal, sendBookingMessage, submitBookingComplaint, updateCustomerBooking, type Booking, type Provider, type ProviderWithdrawalSummary } from '../api'
+import { canonicalCategory, categories } from '../data/serviceCategories'
+import { getBookingMessages, getProviderWithdrawals, requestProviderWithdrawal, sendBookingMessage, submitBookingComplaint, updateCustomerBooking, type Booking, type Provider, type ProviderWithdrawalSummary, type ServicePackage } from '../api'
 import { useAuth } from '../context/AuthContext'
 import {
   changeBookingStatus,
+  changeCashPaymentStatus,
   fetchProviders,
   getErrorMessage,
   loadCustomerDetails,
@@ -51,7 +53,7 @@ function printBookingInvoice(booking: Booking, providerName: string, customerNam
   const printWindow = window.open('', '_blank')
   if (!printWindow) throw new Error('Allow pop-ups to generate the invoice.')
   const amount = (booking.amount || 0).toLocaleString('en-IN')
-  printWindow.document.write(`<!doctype html><html><head><title>Invoice ${escapeHtml(booking._id)}</title><style>body{font:15px Arial,sans-serif;color:#17221f;max-width:760px;margin:48px auto;padding:0 24px}header{display:flex;justify-content:space-between;border-bottom:2px solid #146c63;padding-bottom:20px}h1{font-size:28px;margin:0}small{color:#68736f}table{width:100%;border-collapse:collapse;margin:32px 0}th,td{text-align:left;padding:13px;border-bottom:1px solid #dce5de}th:last-child,td:last-child{text-align:right}.total{text-align:right;font-size:20px;font-weight:bold}.details{line-height:1.8;color:#52615a}@media print{body{margin:0}}</style></head><body><header><div><h1>Service invoice</h1><small>Invoice #${escapeHtml(booking._id)}</small></div><div><strong>${escapeHtml(providerName)}</strong><br><small>Issued ${new Date().toLocaleDateString('en-IN')}</small></div></header><p class="details"><strong>Customer:</strong> ${escapeHtml(customerName)}<br><strong>Service date:</strong> ${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}<br><strong>Service address:</strong> ${escapeHtml(booking.address)}</p><table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody><tr><td>${escapeHtml(booking.service)}${booking.description ? `<br><small>${escapeHtml(booking.description)}</small>` : ''}</td><td>₹${amount}</td></tr></tbody></table><p class="total">Total: ₹${amount}</p><p class="details">Payment method: ${booking.paymentMethod === 'upi' ? 'UPI' : 'Cash on delivery'}<br>Status: ${escapeHtml(booking.paymentStatus === 'paid' ? 'Paid' : 'Payment pending')}</p><script>window.onload=()=>window.print()</script></body></html>`)
+  printWindow.document.write(`<!doctype html><html><head><title>Invoice ${escapeHtml(booking._id)}</title><style>body{font:15px Arial,sans-serif;color:#17221f;max-width:760px;margin:48px auto;padding:0 24px}header{display:flex;justify-content:space-between;border-bottom:2px solid #146c63;padding-bottom:20px}h1{font-size:28px;margin:0}small{color:#68736f}table{width:100%;border-collapse:collapse;margin:32px 0}th,td{text-align:left;padding:13px;border-bottom:1px solid #dce5de}th:last-child,td:last-child{text-align:right}.total{text-align:right;font-size:20px;font-weight:bold}.details{line-height:1.8;color:#52615a}@media print{body{margin:0}}</style></head><body><header><div><h1>Service invoice</h1><small>Invoice #${escapeHtml(booking._id)}</small></div><div><strong>${escapeHtml(providerName)}</strong><br><small>Issued ${new Date().toLocaleDateString('en-IN')}</small></div></header><p class="details"><strong>Customer:</strong> ${escapeHtml(customerName)}<br><strong>Service date:</strong> ${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}<br><strong>Service address:</strong> ${escapeHtml(booking.address)}</p><table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody><tr><td>${escapeHtml(booking.service)}${booking.servicePackageName ? `<br><small>Package: ${escapeHtml(booking.servicePackageName)}</small>` : ''}${booking.description ? `<br><small>${escapeHtml(booking.description)}</small>` : ''}</td><td>₹${amount}</td></tr></tbody></table><p class="total">Total: ₹${amount}</p><p class="details">Payment method: ${booking.paymentMethod === 'upi' ? 'UPI' : booking.paymentMethod === 'online' ? 'Online payment' : 'Cash on delivery'}<br>Status: ${escapeHtml(booking.paymentStatus === 'paid' ? 'Paid' : 'Payment pending')}</p><script>window.onload=()=>window.print()</script></body></html>`)
   printWindow.document.close()
 }
 
@@ -63,6 +65,8 @@ function ProviderServiceForm() {
     city: '',
     address: '',
     pricing: '',
+    packages: [] as ServicePackage[],
+    experienceYears: '0',
     skills: '',
     serviceAreas: '',
     workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as string[],
@@ -82,11 +86,13 @@ function ProviderServiceForm() {
       if (service) {
         setForm({
           businessName: service.businessName || '',
-          category: service.category || '',
+          category: canonicalCategory(service.category || ''),
           description: service.description || '',
           city: service.city || '',
           address: service.address || '',
           pricing: service.pricing || '',
+          packages: service.packages || [],
+          experienceYears: String(service.experience || 0),
           skills: (service.skills || []).join(', '),
           serviceAreas: (service.serviceAreas || []).join(', '),
           workingDays: service.workingHours?.days || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
@@ -100,7 +106,7 @@ function ProviderServiceForm() {
       }
     }).catch(() => {
       const saved = JSON.parse(localStorage.getItem('servicehub_my_service') || 'null')
-      if (saved) setForm(saved)
+      if (saved) setForm({ ...saved, category: canonicalCategory(saved.category || '') })
       else setStatus('Unable to load your service listing.')
     }).finally(() => setLoading(false))
   }, [])
@@ -111,6 +117,12 @@ function ProviderServiceForm() {
 
   const toggleWorkingDay = (day: string) => {
     updateField('workingDays', form.workingDays.includes(day) ? form.workingDays.filter((value) => value !== day) : [...form.workingDays, day])
+  }
+
+  const addPackage = () => updateField('packages', [...form.packages, { id: crypto.randomUUID().replace(/-/g, ''), name: '', features: [''], pricePaise: 0 }])
+
+  const updatePackage = (id: string, update: Partial<ServicePackage>) => {
+    updateField('packages', form.packages.map((item) => item.id === id ? { ...item, ...update } : item))
   }
 
   const addPortfolioImages = async (files: FileList | null) => {
@@ -142,6 +154,8 @@ function ProviderServiceForm() {
         city: form.city,
         address: form.address,
         pricing: form.pricing,
+        packages: form.packages.filter((item) => item.name.trim() && item.pricePaise > 0 && item.features.some((feature) => feature.trim())).map((item) => ({ ...item, features: item.features.map((feature) => feature.trim()).filter(Boolean) })),
+        experience: Number(form.experienceYears) || 0,
         skills: form.skills.split(/[,;\n]/).map((skill) => skill.trim()).filter(Boolean),
         serviceAreas: form.serviceAreas.split(/[,;\n]/).map((area) => area.trim()).filter(Boolean),
         workingHours: { days: form.workingDays, start: form.startTime, end: form.endTime },
@@ -165,7 +179,7 @@ function ProviderServiceForm() {
 
     try {
       await removeService()
-      setForm({ businessName: '', category: '', description: '', city: '', address: '', pricing: '', skills: '', serviceAreas: '', workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], startTime: '09:00', endTime: '17:00', pricingDetails: '', portfolioImages: [], isAvailable: true })
+      setForm({ businessName: '', category: '', description: '', city: '', address: '', pricing: '', packages: [], experienceYears: '0', skills: '', serviceAreas: '', workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], startTime: '09:00', endTime: '17:00', pricingDetails: '', portfolioImages: [], isAvailable: true })
       setIsEditing(false)
       setShowForm(false)
       setStatus('Your service has been deleted.')
@@ -221,7 +235,7 @@ function ProviderServiceForm() {
               Service type
               <select value={form.category} onChange={(event) => updateField('category', event.target.value)} required>
                 <option value="">Select a service type</option>
-                {['Home repair', 'Cleaning', 'Auto care', 'Wellness', 'Tutoring', 'Moving', 'Electrician', 'Photographer', 'Saloon', 'Grocery', 'Electrical services'].map((category) => (
+                {categories.map(({ name: category }) => (
                   <option key={category} value={category}>{category}</option>
                 ))}
               </select>
@@ -231,9 +245,25 @@ function ProviderServiceForm() {
               <input value={form.city} onChange={(event) => updateField('city', event.target.value)} placeholder="Pune" required />
             </label>
             <label>
-              Starting price
-              <input value={form.pricing} onChange={(event) => updateField('pricing', event.target.value)} placeholder="From ₹499" />
+              Experience (years)
+              <input type="number" min="0" max="80" step="1" value={form.experienceYears} onChange={(event) => updateField('experienceYears', event.target.value)} required />
             </label>
+            <label>
+              Starting price
+              {form.packages.length
+                ? <output>{form.packages.some((item) => item.pricePaise > 0) ? `From ₹${(Math.min(...form.packages.filter((item) => item.pricePaise > 0).map((item) => item.pricePaise)) / 100).toLocaleString('en-IN')}` : 'Set a package price'} · based on lowest package</output>
+                : <input value={form.pricing} onChange={(event) => updateField('pricing', event.target.value)} placeholder="From ₹499" />}
+            </label>
+            <section className="editor-wide package-editor-section">
+              <div className="package-editor-heading"><div><strong>Service packages</strong><p>Offer clear tiers with included work and a fixed price.</p></div><button type="button" className="dashboard-refresh" onClick={addPackage} disabled={form.packages.length >= 12}><Plus size={15} /> Add package</button></div>
+              {form.packages.map((servicePackage, index) => <fieldset className="package-editor" key={servicePackage.id}>
+                <legend>Package {index + 1}</legend>
+                <label>Package name<input value={servicePackage.name} maxLength={60} onChange={(event) => updatePackage(servicePackage.id, { name: event.target.value })} placeholder="Basic" required /></label>
+                <label>Price in ₹<input type="number" min="0.01" max="100000000" step="0.01" value={servicePackage.pricePaise ? servicePackage.pricePaise / 100 : ''} onChange={(event) => updatePackage(servicePackage.id, { pricePaise: Math.round(Number(event.target.value) * 100) || 0 })} placeholder="299" required /></label>
+                <label className="package-features-field">Included work (one item per line)<textarea value={servicePackage.features.join('\n')} maxLength={1200} rows={3} onChange={(event) => updatePackage(servicePackage.id, { features: event.target.value.split('\n').slice(0, 10) })} placeholder={'Switch replacement\nMinor wiring\nInspection'} required /></label>
+                <button type="button" className="reject-button" onClick={() => updateField('packages', form.packages.filter((item) => item.id !== servicePackage.id))}><Trash2 size={14} /> Remove package</button>
+              </fieldset>)}
+            </section>
             <label className="editor-wide">
               Address
               <input value={form.address} onChange={(event) => updateField('address', event.target.value)} placeholder="Service area or business address" />
@@ -244,7 +274,10 @@ function ProviderServiceForm() {
             </label>
             <label>
               Skills (comma separated)
-              <input value={form.skills} onChange={(event) => updateField('skills', event.target.value)} placeholder="Repairs, installation, maintenance" />
+              <input value={form.skills} onChange={(event) => updateField('skills', event.target.value)} placeholder="Add services separated by commas" list="provider-service-suggestions" />
+              <datalist id="provider-service-suggestions">
+                {categories.find(({ name }) => name === canonicalCategory(form.category))?.services.map((service) => <option key={service} value={service} />)}
+              </datalist>
             </label>
             <label>
               Service areas (comma separated)
@@ -291,7 +324,7 @@ function ProviderServiceForm() {
   )
 }
 
-function ProviderBookingRow({ booking, onStatusChange, onChat, onInvoice }: { booking: Booking; onStatusChange: (booking: Booking, status: Booking['bookingStatus']) => void; onChat: (booking: Booking) => void; onInvoice: (booking: Booking, customerName: string) => void }) {
+function ProviderBookingRow({ booking, onStatusChange, onPaymentStatusChange, onChat, onInvoice }: { booking: Booking; onStatusChange: (booking: Booking, status: Booking['bookingStatus']) => void; onPaymentStatusChange: (booking: Booking, status: 'pending' | 'paid') => void; onChat: (booking: Booking) => void; onInvoice: (booking: Booking, customerName: string) => void }) {
   const [customer, setCustomer] = useState<{ name: string; phone?: string } | null>(null)
 
   useEffect(() => {
@@ -316,8 +349,9 @@ function ProviderBookingRow({ booking, onStatusChange, onChat, onInvoice }: { bo
         <CalendarDays size={20} />
         <div>
           <strong>{booking.service}</strong>
+          {booking.servicePackageName && <p>Package: {booking.servicePackageName}</p>}
           <p>{booking.date} · {booking.time} · {booking.address}</p>
-          <p>Payment: {booking.paymentMethod === 'upi' ? 'UPI' : 'Cash on delivery'}</p>
+          <p>Payment: {booking.paymentMethod === 'online' ? `Online · ${booking.paymentStatus || 'pending'}` : booking.paymentMethod === 'upi' ? 'UPI · legacy booking' : `Cash · ${booking.paymentStatus === 'paid' ? 'paid' : 'pending'}`}</p>
           {customer && <p style={{ fontSize: '14px', color: '#666' }}>📞 {customer.phone || 'Phone not provided'}</p>}
           <small>{booking.description || 'No additional details provided.'}</small>
           {booking.complaint && <div className="booking-complaint"><strong>Customer complaint for {booking.complaint.providerBusinessName || booking.providerBusinessName || 'your service'}</strong><p>{booking.complaint.message}</p></div>}
@@ -336,6 +370,14 @@ function ProviderBookingRow({ booking, onStatusChange, onChat, onInvoice }: { bo
           <button className="accept-button" onClick={() => onStatusChange(booking, action.status)}><Check size={15} /> {action.label}</button>
         </div>
       ) : null}
+      {!['online', 'upi'].includes(booking.paymentMethod || 'cash_on_delivery') && !['cancelled', 'rejected'].includes(booking.bookingStatus) && (
+        <div className="booking-actions">
+          <button className={booking.paymentStatus === 'paid' ? 'reject-button' : 'accept-button'} onClick={() => onPaymentStatusChange(booking, booking.paymentStatus === 'paid' ? 'pending' : 'paid')}>
+            {booking.paymentStatus === 'paid' ? <Clock3 size={15} /> : <Check size={15} />}
+            Mark cash {booking.paymentStatus === 'paid' ? 'pending' : 'paid'}
+          </button>
+        </div>
+      )}
       {booking.bookingStatus === 'completed' && <div className="booking-actions"><button className="dashboard-refresh" onClick={() => onInvoice(booking, customer?.name || 'Customer')}><FileText size={15} /> Generate invoice</button></div>}
       <div className="booking-actions"><button className="dashboard-refresh" onClick={() => onChat(booking)}><MessageCircle size={15} /> Chat with customer{booking.messages?.length ? ` (${booking.messages.length})` : ''}</button></div>
     </article>
@@ -542,6 +584,15 @@ function ProviderDashboard() {
     }
   }
 
+  const changePaymentStatus = async (booking: Booking, status: 'pending' | 'paid') => {
+    try {
+      const updated = await changeCashPaymentStatus(booking, status)
+      setBookings((items) => items.map((item) => item._id === updated._id ? updated : item))
+    } catch {
+      setError('Cash payment status could not be updated. Refresh and try again.')
+    }
+  }
+
   const pendingCount = bookings.filter((booking) => booking.bookingStatus === 'pending').length
   const todayCount = bookings.filter((booking) => booking.date === new Date().toISOString().slice(0, 10)).length
   const completedBookings = bookings.filter((booking) => booking.bookingStatus === 'completed')
@@ -631,7 +682,7 @@ function ProviderDashboard() {
           </div>
 
           {error && <p className="form-error">{error}</p>}
-          {loading ? <LoaderCircle className="loader" /> : bookings.length ? bookings.map((booking) => <ProviderBookingRow booking={booking} onStatusChange={changeStatus} onChat={setChatBooking} onInvoice={generateInvoice} key={booking._id} />) : <div className="empty-state"><CalendarDays size={28} /><h3>No booking requests</h3><p>New customer requests will appear here.</p></div>}
+          {loading ? <LoaderCircle className="loader" /> : bookings.length ? bookings.map((booking) => <ProviderBookingRow booking={booking} onStatusChange={changeStatus} onPaymentStatusChange={changePaymentStatus} onChat={setChatBooking} onInvoice={generateInvoice} key={booking._id} />) : <div className="empty-state"><CalendarDays size={28} /><h3>No booking requests</h3><p>New customer requests will appear here.</p></div>}
         </div>
       </main>
       {chatBooking && <CustomerActionModal key={chatBooking._id} booking={chatBooking} action="message" onClose={() => setChatBooking(null)} onUpdated={(updated) => setBookings((items) => items.map((item) => item._id === updated._id ? updated : item))} />}
@@ -661,14 +712,6 @@ function CustomerDashboard() {
   }, [])
 
   const updateBooking = (updated: Booking) => setBookings((items) => items.map((item) => item._id === updated._id ? updated : item))
-
-  const payBooking = async (booking: Booking) => {
-    try {
-      updateBooking(await recordDemoPayment(booking._id))
-    } catch (reason) {
-      setError(getErrorMessage(reason))
-    }
-  }
 
   const cancelBooking = async (booking: Booking) => {
     if (!window.confirm('Cancel this booking request?')) return
@@ -715,7 +758,10 @@ function CustomerDashboard() {
         <div className="container booking-list">
           <div className="section-heading">
             <div><p className="kicker">Activity</p><h2>Your <span>bookings.</span></h2></div>
-            <Link to="/services" className="dark-button">Book another service <ArrowRight size={16} /></Link>
+            <div className="booking-header-actions">
+              <Link to="/payments" className="text-link">Payment history <ArrowRight size={15} /></Link>
+              <Link to="/services" className="dark-button">Book another service <ArrowRight size={16} /></Link>
+            </div>
           </div>
 
           {error && <p className="form-error">{error}</p>}
@@ -724,6 +770,7 @@ function CustomerDashboard() {
               <CalendarDays size={20} />
               <div>
                 <strong>{booking.service}</strong>
+                {booking.servicePackageName && <p>Package: {booking.servicePackageName}</p>}
                 <p>{booking.date} · {booking.time} · {booking.address}</p>
                 {booking.urgent && <span className="emergency-booking-note"><AlertTriangle size={13} /> Emergency request</span>}
                 {booking.amount !== undefined && <p>Quoted amount: ₹{booking.amount.toLocaleString('en-IN')}</p>}
@@ -740,10 +787,9 @@ function CustomerDashboard() {
               </div>
               <div className="booking-row-side">
                 <span className={`status status-${booking.bookingStatus}`}>{booking.bookingStatus.replace('_', ' ')}</span>
-                <span className="payment-status">{booking.paymentStatus === 'paid' ? 'UPI paid' : booking.paymentMethod === 'upi' ? 'UPI selected' : 'Cash on delivery'}</span>
+                <span className="payment-status">{booking.paymentMethod === 'online' ? `Online · ${booking.paymentStatus || 'pending'}` : booking.paymentMethod === 'upi' ? `UPI · ${booking.paymentStatus || 'pending'}` : `Cash · ${booking.paymentStatus === 'paid' ? 'paid' : 'pending'}`}</span>
               </div>
               <div className="customer-booking-actions">
-                {booking.paymentMethod === 'upi' && booking.paymentStatus !== 'paid' && !['cancelled', 'rejected'].includes(booking.bookingStatus) && <button onClick={() => payBooking(booking)}><CreditCard size={14} /> Record demo UPI payment ₹{(booking.amount || 0).toLocaleString('en-IN')}</button>}
                 <button onClick={() => setActionBooking({ booking, action: 'message' })}><MessageCircle size={14} /> Chat</button>
                 {['pending', 'accepted'].includes(booking.bookingStatus) && <button onClick={() => setActionBooking({ booking, action: 'reschedule' })}><CalendarClock size={14} /> Reschedule</button>}
                 {['pending', 'accepted'].includes(booking.bookingStatus) && <button className="cancel-booking-action" onClick={() => cancelBooking(booking)}><Ban size={14} /> Cancel</button>}

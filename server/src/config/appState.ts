@@ -1,5 +1,5 @@
 import jwt, { type SignOptions } from 'jsonwebtoken'
-import { Schema, model } from 'mongoose'
+import { Schema, model, type InferSchemaType } from 'mongoose'
 
 export const jwtSecret = process.env.JWT_SECRET ?? 'development-secret'
 
@@ -24,10 +24,14 @@ export type DemoBooking = {
   address: string
   description?: string
   amount?: number
-  paymentMethod?: 'cash_on_delivery' | 'upi'
+  paymentMethod?: 'cash_on_delivery' | 'upi' | 'online'
+  servicePackageId?: string
+  servicePackageName?: string
   urgent?: boolean
   bookingStatus: string
   paymentStatus?: string
+  razorpayOrderId?: string
+  razorpayPaymentId?: string
   messages?: { senderId: string; senderRole: string; message: string; createdAt: string }[]
   complaint?: { message: string; providerBusinessName?: string; status: string; createdAt: string }
   review?: {
@@ -46,6 +50,7 @@ export type DemoProvider = {
   address?: string
   experience?: number
   pricing?: string
+  packages?: ServicePackage[]
   skills?: string[]
   serviceAreas?: string[]
   workingHours?: { days: string[]; start: string; end: string }
@@ -56,6 +61,13 @@ export type DemoProvider = {
   totalReviews: number
   isVerified?: boolean
   isActive?: boolean
+}
+
+export type ServicePackage = {
+  id: string
+  name: string
+  features: string[]
+  pricePaise: number
 }
 
 export type DemoWithdrawal = {
@@ -100,6 +112,12 @@ export const providerSchema = new Schema({
   address: String,
   experience: Number,
   pricing: String,
+  packages: [{
+    id: { type: String, required: true },
+    name: { type: String, required: true, maxlength: 60 },
+    features: { type: [String], default: [], validate: (items: string[]) => items.length <= 10 },
+    pricePaise: { type: Number, required: true, min: 1, max: Number.MAX_SAFE_INTEGER },
+  }],
   skills: [String],
   serviceAreas: [String],
   workingHours: { days: [String], start: String, end: String },
@@ -134,12 +152,19 @@ export const bookingSchema = new Schema({
   address: String,
   description: String,
   amount: Number,
-  paymentMethod: { type: String, enum: ['cash_on_delivery', 'upi'], default: 'cash_on_delivery' },
+  servicePackageId: String,
+  servicePackageName: String,
+  paymentMethod: { type: String, enum: ['cash_on_delivery', 'upi', 'online'], default: 'cash_on_delivery' },
   urgent: { type: Boolean, default: false },
   paymentStatus: {
     type: String,
+    enum: ['pending', 'created', 'paid', 'failed', 'refunded'],
     default: 'pending',
   },
+  razorpayOrderId: String,
+  razorpayPaymentId: { type: String, unique: true, sparse: true },
+  paymentId: { type: Schema.Types.ObjectId, ref: 'Payment', unique: true, sparse: true },
+  currency: { type: String, default: 'INR' },
   bookingStatus: {
     type: String,
     enum: ['pending', 'accepted', 'rejected', 'on_the_way', 'in_progress', 'completed', 'cancelled'],
@@ -153,6 +178,67 @@ export const bookingSchema = new Schema({
   },
 }, { timestamps: true })
 
+const paymentBookingDetailsSchema = new Schema({
+  service: { type: String, required: true },
+  packageId: String,
+  packageName: String,
+  providerBusinessName: { type: String, required: true },
+  date: { type: String, required: true },
+  time: { type: String, required: true },
+  address: { type: String, required: true },
+  description: { type: String, default: '' },
+  urgent: { type: Boolean, default: false },
+}, { _id: false })
+
+const paymentAttemptSchema = new Schema({
+  orderId: { type: String, required: true },
+  paymentId: String,
+  status: { type: String, enum: ['created', 'failed', 'paid'], default: 'created' },
+  method: String,
+  createdAt: { type: Date, default: Date.now },
+}, { _id: false })
+
+const paymentRefundSchema = new Schema({
+  requestId: { type: String, required: true },
+  razorpayRefundId: String,
+  amountPaise: { type: Number, required: true, min: 1 },
+  reason: { type: String, required: true },
+  status: { type: String, enum: ['created', 'processed', 'failed'], default: 'created' },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+}, { _id: false })
+
+export const paymentSchema = new Schema({
+  customerId: { type: Schema.Types.Mixed, required: true },
+  providerId: { type: Schema.Types.Mixed, required: true },
+  bookingId: { type: Schema.Types.ObjectId, ref: 'Booking' },
+  bookingDetails: { type: paymentBookingDetailsSchema, required: true },
+  amountPaise: { type: Number, required: true, min: 1 },
+  taxPaise: { type: Number, default: 0, min: 0 },
+  feePaise: { type: Number, default: 0, min: 0 },
+  currency: { type: String, required: true, default: 'INR' },
+  gateway: { type: String, enum: ['razorpay'], default: 'razorpay' },
+  razorpayOrderId: { type: String, unique: true, sparse: true },
+  razorpayPaymentId: { type: String, unique: true, sparse: true },
+  paymentMethod: String,
+  status: { type: String, enum: ['pending', 'created', 'paid', 'failed', 'refunded'], default: 'pending', index: true },
+  idempotencyKey: { type: String, required: true },
+  bookingKey: { type: String, unique: true, sparse: true },
+  attempts: { type: [paymentAttemptSchema], default: [] },
+  refunds: { type: [paymentRefundSchema], default: [] },
+  processedWebhookEventIds: { type: [String], default: [] },
+  orderCreationLock: String,
+  orderCreationLockAt: Date,
+  refundLock: String,
+  refundLockAt: Date,
+}, { timestamps: true })
+
+paymentSchema.index({ customerId: 1, idempotencyKey: 1 }, { unique: true })
+paymentSchema.index({ customerId: 1, createdAt: -1 })
+paymentSchema.index({ providerId: 1, createdAt: -1 })
+paymentSchema.index({ 'attempts.orderId': 1 })
+export type PaymentRecord = InferSchemaType<typeof paymentSchema>
+
 export const withdrawalSchema = new Schema({
   providerId: Schema.Types.Mixed,
   amount: { type: Number, required: true, min: 1 },
@@ -163,6 +249,7 @@ export const withdrawalSchema = new Schema({
 export const User = model('User', userSchema)
 export const Provider = model('Provider', providerSchema)
 export const Booking = model('Booking', bookingSchema)
+export const Payment = model<PaymentRecord>('Payment', paymentSchema)
 export const Withdrawal = model('Withdrawal', withdrawalSchema)
 
 export const demoUsers: AuthUser[] = []
@@ -170,16 +257,7 @@ export const demoBookings: DemoBooking[] = []
 export const demoProviderServices: DemoProvider[] = []
 export const demoWithdrawals: DemoWithdrawal[] = []
 
-export const demoProviders: DemoProvider[] = [
-  { _id: 'fixright', businessName: 'FixRight Services', category: 'Home repair', city: 'Pune', rating: 4.9, totalReviews: 128, pricing: 'From ₹499', isVerified: true },
-  { _id: 'urbanglow', businessName: 'Urban Glow Studio', category: 'Wellness', city: 'Mumbai', rating: 4.8, totalReviews: 94, pricing: 'From ₹699', isVerified: true },
-  { _id: 'motocraft', businessName: 'MotoCraft Garage', category: 'Auto care', city: 'Kolhapur', rating: 4.9, totalReviews: 76, pricing: 'From ₹299', isVerified: true },
-  { _id: 'brightwire', businessName: 'BrightWire Electricians', category: 'Electrician', city: 'Pune', rating: 4.8, totalReviews: 61, pricing: 'From ₹399', isVerified: true },
-  { _id: 'framesandlight', businessName: 'Frames & Light Photography', category: 'Photographer', city: 'Mumbai', rating: 4.9, totalReviews: 47, pricing: 'From ₹1,999', isVerified: true },
-  { _id: 'trimandtone', businessName: 'Trim & Tone Saloon', category: 'Saloon', city: 'Bengaluru', rating: 4.7, totalReviews: 83, pricing: 'From ₹299', isVerified: true },
-  { _id: 'dailybasket', businessName: 'Daily Basket Grocery', category: 'Grocery', city: 'Hyderabad', rating: 4.8, totalReviews: 112, pricing: 'From ₹99', isVerified: true },
-  { _id: 'powerpoint', businessName: 'PowerPoint Electrical Services', category: 'Electrical services', city: 'Kolhapur', rating: 4.8, totalReviews: 58, pricing: 'From ₹449', isVerified: true },
-]
+export const demoProviders: DemoProvider[] = []
 
 export let databaseReady = false
 

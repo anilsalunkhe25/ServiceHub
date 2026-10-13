@@ -10,26 +10,17 @@ import {
   saveMyService,
   submitReview,
   updateBookingStatus,
+  updateCashPaymentStatus,
   updateMyService,
 } from '../api'
 import type { Booking, PaymentMethod, Provider as ApiProvider, ProviderServicePayload } from '../api'
-import { fallbackProviders } from '../data/mockData'
 
-export async function fetchProviders(params: { search?: string; city?: string; category?: string }) {
-  try {
-    const result = await getProviders(params)
-    return result
-  } catch {
-    return fallbackProviders
-  }
+export async function fetchProviders(params: { search?: string; city?: string; category?: string; area?: string }) {
+  return getProviders(params)
 }
 
 export async function fetchProviderById(id: string) {
-  try {
-    return await getProvider(id)
-  } catch {
-    return fallbackProviders.find((provider) => provider._id === id) || fallbackProviders[0]
-  }
+  return getProvider(id)
 }
 
 export async function fetchMyService() {
@@ -61,6 +52,7 @@ export async function createBookingRequest(payload: {
   description: string;
   amount: number;
   paymentMethod: PaymentMethod;
+  packageId?: string;
   urgent?: boolean
 }) {
   return createBooking(payload)
@@ -80,6 +72,10 @@ export async function loadCustomerDetails(bookingId: string) {
 
 export async function changeBookingStatus(booking: Booking, status: Booking['bookingStatus']) {
   return updateBookingStatus(booking._id, booking.bookingStatus, status, booking.providerId)
+}
+
+export async function changeCashPaymentStatus(booking: Booking, paymentStatus: 'pending' | 'paid') {
+  return updateCashPaymentStatus(booking._id, paymentStatus)
 }
 
 export async function sendReview(bookingId: string, rating: number, comment: string) {

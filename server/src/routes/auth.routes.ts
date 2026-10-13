@@ -7,7 +7,8 @@ const router = Router()
 
 router.post('/register', async (request, response, next) => {
   try {
-    const { name, email, phone, password, city, role = 'customer' } = request.body
+    const { name, email, phone, password, city } = request.body
+    const role = request.body.role === 'provider' ? 'provider' : 'customer'
 
     if (!name || !email || !password) {
       return response.status(400).json({ success: false, message: 'Name, email and password are required' })

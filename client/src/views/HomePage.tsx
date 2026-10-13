@@ -3,20 +3,20 @@ import { Link } from 'react-router-dom'
 import { Navigation } from '../components/Navigation'
 import { ProviderCard } from '../components/ProviderCard'
 import { SearchPanel } from '../components/SearchPanel'
-import { categories, fallbackProviders } from '../data/mockData'
+import { categories } from '../data/serviceCategories'
 import { fetchProviders } from '../controllers/providerController'
 import { useEffect, useState } from 'react'
 import type { Provider as ApiProvider } from '../api'
 import { BookingModal } from './BookingModal'
 
 function ProviderShowcase({ onBook }: { onBook: (provider: ApiProvider) => void }) {
-  const [items, setItems] = useState(fallbackProviders)
+  const [items, setItems] = useState<ApiProvider[]>([])
 
   useEffect(() => {
     fetchProviders({}).then((result) => {
       const saved = JSON.parse(localStorage.getItem('servicehub_my_service') || 'null') as ApiProvider | null
       setItems(saved && !result.some((provider) => provider._id === saved._id) ? [saved, ...result] : result)
-    }).catch(() => setItems(fallbackProviders))
+    }).catch(() => setItems([]))
   }, [])
 
   return (
@@ -30,11 +30,13 @@ function ProviderShowcase({ onBook }: { onBook: (provider: ApiProvider) => void 
           <Link to="/services" className="text-link">Browse all providers <ArrowRight size={16} /></Link>
         </div>
 
-        <div className="provider-grid">
-          {items.slice(0, 3).map((provider) => (
-            <ProviderCard provider={provider} onBook={onBook} key={provider._id || provider.businessName} />
-          ))}
-        </div>
+        {items.length
+          ? <div className="provider-grid">
+              {items.slice(0, 3).map((provider) => (
+                <ProviderCard provider={provider} onBook={onBook} key={provider._id || provider.businessName} />
+              ))}
+            </div>
+          : <p className="empty-state">No providers have published services yet.</p>}
       </div>
     </section>
   )
@@ -66,7 +68,7 @@ export function HomePage() {
 
             <div className="hero-visual">
               <div className="main-image">
-                <img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1000&q=85" alt="Professional home service provider at work" />
+                <img src="/bikerepair.jpeg" alt="Professional home service provider at work" />
                 <div className="image-caption">
                   <span className="online-dot" /> Available today <strong>4.9 <Star size={13} fill="currentColor" /></strong>
                 </div>
@@ -96,10 +98,14 @@ export function HomePage() {
             </div>
 
             <div className="category-grid">
-              {categories.map(([title, detail, icon]) => (
-                <Link to={`/services?category=${encodeURIComponent(title)}`} className="category-item" key={title}>
+              {categories.map(({ name, description, icon, services }) => (
+                <Link to={`/services?category=${encodeURIComponent(name)}`} className="category-item" key={name}>
                   <span className="category-icon">{icon}</span>
-                  <span><strong>{title}</strong><small>{detail}</small></span>
+                  <span>
+                    <strong>{name}</strong>
+                    <small>{description}</small>
+                    {services.length > 0 && <small className="category-services">Popular: {services.slice(0, 3).join(' · ')}</small>}
+                  </span>
                   <ArrowRight size={17} />
                 </Link>
               ))}

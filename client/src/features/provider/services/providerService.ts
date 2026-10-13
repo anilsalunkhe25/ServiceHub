@@ -7,22 +7,13 @@ import {
   updateMyService,
 } from '../../../api'
 import type { Provider as ApiProvider } from '../../../api'
-import { fallbackProviders } from '../../../data/mockData'
 
-export async function fetchProviders(params: { search?: string; city?: string; category?: string }) {
-  try {
-    return await getProviders(params)
-  } catch {
-    return fallbackProviders
-  }
+export async function fetchProviders(params: { search?: string; city?: string; category?: string; area?: string }) {
+  return getProviders(params)
 }
 
 export async function fetchProviderById(id: string) {
-  try {
-    return await getProvider(id)
-  } catch {
-    return fallbackProviders.find((provider) => provider._id === id) || fallbackProviders[0]
-  }
+  return getProvider(id)
 }
 
 export async function fetchMyProviderService() {
