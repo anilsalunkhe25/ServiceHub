@@ -30,7 +30,9 @@ export function ProfilePage() {
           <Link to="/services" className="text-link">← Back to services</Link>
           {loading ? <div className="empty-state">Loading provider...</div> : !provider ? <div className="empty-state"><h2>Service provider not found</h2><p>This provider may have removed their listing.</p></div> : <>
           <div className="profile-card">
-            <div className="profile-avatar">{provider.businessName.charAt(0)}</div>
+            {provider.profileImage
+              ? <img className="profile-avatar profile-avatar-image" src={provider.profileImage} alt={`${provider.businessName} profile`} />
+              : <div className="profile-avatar">{provider.businessName.charAt(0)}</div>}
             <div>
               <p className="kicker">{provider.category} · {provider.city}</p>
               <h1>{provider.businessName}</h1>

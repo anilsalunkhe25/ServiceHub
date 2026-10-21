@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { login as loginRequest, register as registerRequest, setAuthToken } from '../api'
 import type { User } from '../api'
+import { getSessionRemainingMs, isSessionTokenActive } from '../authSession'
 
 type AuthValue = {
   user: User | null;
@@ -32,20 +33,62 @@ function getError(reason: unknown) {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
+  const [initialSession] = useState(() => {
     const stored = localStorage.getItem('servicehub_user')
     const token = localStorage.getItem('servicehub_token')
-    return stored && token ? (JSON.parse(stored) as User) : null
+    if (!stored || !token || !isSessionTokenActive(token)) {
+      localStorage.removeItem('servicehub_user')
+      localStorage.removeItem('servicehub_token')
+      return { user: null, token: null }
+    }
+
+    try {
+      return { user: JSON.parse(stored) as User, token }
+    } catch {
+      localStorage.removeItem('servicehub_user')
+      localStorage.removeItem('servicehub_token')
+      return { user: null, token: null }
+    }
   })
+  const [user, setUser] = useState<User | null>(initialSession.user)
+  const [sessionToken, setSessionToken] = useState<string | null>(initialSession.token)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setAuthToken(localStorage.getItem('servicehub_token'))
+    if (!sessionToken) {
+      setAuthToken(null)
+      return
+    }
+
+    const remainingMs = getSessionRemainingMs(sessionToken)
+    if (remainingMs <= 0) {
+      window.dispatchEvent(new Event('servicehub:session-expired'))
+      return
+    }
+
+    setAuthToken(sessionToken)
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new Event('servicehub:session-expired'))
+    }, remainingMs)
+    return () => window.clearTimeout(timer)
+  }, [sessionToken])
+
+  useEffect(() => {
+    const clearExpiredSession = () => {
+      setUser(null)
+      setSessionToken(null)
+      setAuthToken(null)
+      localStorage.removeItem('servicehub_user')
+      localStorage.removeItem('servicehub_token')
+    }
+    window.addEventListener('servicehub:session-expired', clearExpiredSession)
+    return () => window.removeEventListener('servicehub:session-expired', clearExpiredSession)
   }, [])
 
   const finish = (data: { user: User; token: string }) => {
     setUser(data.user)
+    setSessionToken(data.token)
     setAuthToken(data.token)
     localStorage.setItem('servicehub_token', data.token)
     localStorage.setItem('servicehub_user', JSON.stringify(data.user))
@@ -86,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null)
+    setSessionToken(null)
     setAuthToken(null)
     localStorage.removeItem('servicehub_user')
     localStorage.removeItem('servicehub_token')

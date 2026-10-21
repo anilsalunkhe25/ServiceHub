@@ -28,6 +28,7 @@ export type Provider = {
     serviceAreas?: string[];
     workingHours?: { days: string[]; start: string; end: string };
     pricingDetails?: string;
+    profileImage?: string;
     portfolioImages?: string[];
     isAvailable?: boolean
 }
@@ -52,6 +53,7 @@ export type ProviderServicePayload = {
     serviceAreas?: string[];
     workingHours?: { days: string[]; start: string; end: string };
     pricingDetails?: string;
+    profileImage?: string;
     portfolioImages?: string[];
     isAvailable?: boolean
 }
@@ -146,6 +148,19 @@ api.interceptors.request.use((config) => {
     return config
 })
 
+api.interceptors.response.use(
+    (response) => response,
+    (error: unknown) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+            setAuthToken(null)
+            localStorage.removeItem('servicehub_token')
+            localStorage.removeItem('servicehub_user')
+            window.dispatchEvent(new Event('servicehub:session-expired'))
+        }
+        return Promise.reject(error)
+    },
+)
+
 export function setAuthToken(token: string | null) {
     if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
     else delete api.defaults.headers.common.Authorization
@@ -154,6 +169,16 @@ export function setAuthToken(token: string | null) {
 export async function login(email: string, password: string) {
     const response = await api.post<{ data: { user: User; token: string } }>('/auth/login', { email, password });
     return response.data.data
+}
+
+export type ChatbotHistoryMessage = {
+    role: 'user' | 'assistant';
+    content: string
+}
+
+export async function sendChatbotMessage(message: string, history: ChatbotHistoryMessage[]) {
+    const response = await api.post<{ success: true; reply: string; privateData: boolean }>('/chatbot/message', { message, history })
+    return response.data
 }
 
 export async function register(payload: {

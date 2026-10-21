@@ -37,6 +37,12 @@ export function getBasePricePaise(pricing: string | null | undefined) {
   return Number.isSafeInteger(paise) && paise > 0 ? paise : null
 }
 
+export function formatStartingPrice(pricing: unknown) {
+  const value = typeof pricing === 'string' ? pricing.trim().slice(0, 120) : ''
+  if (!value || /₹|\b(?:rs\.?|inr)\b/i.test(value)) return value
+  return value.replace(/\d[\d,]*(?:\.\d{1,2})?/, '₹$&')
+}
+
 export function verifyRazorpayPaymentSignature(orderId: string, paymentId: string, signature: string, secret: string) {
   const expected = createHmac('sha256', secret).update(`${orderId}|${paymentId}`).digest()
   return validHexSignature(expected, signature)

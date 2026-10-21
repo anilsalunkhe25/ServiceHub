@@ -21,9 +21,9 @@ import {
 
 const workingDayOptions = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-async function compressPortfolioImage(file: File) {
+async function compressPortfolioImage(file: File, maxDimension = 1280, quality = 0.72) {
   const image = await createImageBitmap(file)
-  const scale = Math.min(1, 1280 / Math.max(image.width, image.height))
+  const scale = Math.min(1, maxDimension / Math.max(image.width, image.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(image.width * scale))
   canvas.height = Math.max(1, Math.round(image.height * scale))
@@ -35,7 +35,7 @@ async function compressPortfolioImage(file: File) {
   image.close()
 
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Unable to compress this image')), 'image/jpeg', 0.72)
+    canvas.toBlob((result) => result ? resolve(result) : reject(new Error('Unable to compress this image')), 'image/jpeg', quality)
   })
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -73,6 +73,7 @@ function ProviderServiceForm() {
     startTime: '09:00',
     endTime: '17:00',
     pricingDetails: '',
+    profileImage: '',
     portfolioImages: [] as string[],
     isAvailable: true,
   })
@@ -99,6 +100,7 @@ function ProviderServiceForm() {
           startTime: service.workingHours?.start || '09:00',
           endTime: service.workingHours?.end || '17:00',
           pricingDetails: service.pricingDetails || '',
+          profileImage: service.profileImage || '',
           portfolioImages: service.portfolioImages || [],
           isAvailable: service.isAvailable !== false,
         })
@@ -106,7 +108,7 @@ function ProviderServiceForm() {
       }
     }).catch(() => {
       const saved = JSON.parse(localStorage.getItem('servicehub_my_service') || 'null')
-      if (saved) setForm({ ...saved, category: canonicalCategory(saved.category || '') })
+      if (saved) setForm({ ...saved, profileImage: saved.profileImage || '', category: canonicalCategory(saved.category || '') })
       else setStatus('Unable to load your service listing.')
     }).finally(() => setLoading(false))
   }, [])
@@ -133,11 +135,31 @@ function ProviderServiceForm() {
       return
     }
     try {
-      const images = await Promise.all(selected.map(compressPortfolioImage))
+      const images = await Promise.all(selected.map((file) => compressPortfolioImage(file)))
       updateField('portfolioImages', [...form.portfolioImages, ...images])
       setStatus('')
     } catch (reason) {
       setStatus(reason instanceof Error ? reason.message : 'Unable to upload these photos.')
+    }
+  }
+
+  const setProfileImage = async (files: FileList | null) => {
+    const file = files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setStatus('Unable to use this file. Choose an image for your profile picture.')
+      return
+    }
+    try {
+      const image = await compressPortfolioImage(file, 640, 0.68)
+      if (image.length > 650000) {
+        setStatus('Unable to use this image because it is too large. Choose a smaller picture and try again.')
+        return
+      }
+      updateField('profileImage', image)
+      setStatus('')
+    } catch (reason) {
+      setStatus(reason instanceof Error ? reason.message : 'Unable to process this profile picture.')
     }
   }
 
@@ -160,6 +182,7 @@ function ProviderServiceForm() {
         serviceAreas: form.serviceAreas.split(/[,;\n]/).map((area) => area.trim()).filter(Boolean),
         workingHours: { days: form.workingDays, start: form.startTime, end: form.endTime },
         pricingDetails: form.pricingDetails,
+        profileImage: form.profileImage,
         portfolioImages: form.portfolioImages,
         isAvailable: form.isAvailable,
       }, wasEditing)
@@ -179,7 +202,7 @@ function ProviderServiceForm() {
 
     try {
       await removeService()
-      setForm({ businessName: '', category: '', description: '', city: '', address: '', pricing: '', packages: [], experienceYears: '0', skills: '', serviceAreas: '', workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], startTime: '09:00', endTime: '17:00', pricingDetails: '', portfolioImages: [], isAvailable: true })
+      setForm({ businessName: '', category: '', description: '', city: '', address: '', pricing: '', packages: [], experienceYears: '0', skills: '', serviceAreas: '', workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], startTime: '09:00', endTime: '17:00', pricingDetails: '', profileImage: '', portfolioImages: [], isAvailable: true })
       setIsEditing(false)
       setShowForm(false)
       setStatus('Your service has been deleted.')
@@ -199,8 +222,13 @@ function ProviderServiceForm() {
 
       {loading ? <LoaderCircle className="loader" /> : form.businessName && !showForm ? (
         <div className="service-summary">
+          <div className="provider-summary-profile">
+            {form.profileImage
+              ? <img src={form.profileImage} alt={`${form.businessName} profile`} />
+              : <span aria-hidden="true">{form.businessName.charAt(0)}</span>}
+            <div><strong>{form.businessName}</strong><p>Public provider profile picture</p></div>
+          </div>
           <div>
-            <strong>{form.businessName}</strong>
             <p>{form.category} · {form.city}</p>
             <p>{form.pricing || 'Price on request'}</p>
             <p>{form.isAvailable ? 'Accepting bookings' : 'Currently unavailable'}</p>
@@ -299,6 +327,26 @@ function ProviderServiceForm() {
               Detailed pricing
               <textarea value={form.pricingDetails} onChange={(event) => updateField('pricingDetails', event.target.value)} placeholder="Example: inspection ₹199 · installation from ₹499" rows={2} />
             </label>
+            <div className="editor-wide provider-profile-photo-editor">
+              <div>
+                <strong>Profile picture</strong>
+                <p>Shown on your public provider card and profile. Use a clear photo or business logo.</p>
+                <label className="profile-photo-picker">
+                  {form.profileImage ? 'Change picture' : 'Choose picture'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => { void setProfileImage(event.currentTarget.files); event.currentTarget.value = '' }}
+                  />
+                </label>
+                {form.profileImage && <button type="button" className="reject-button" onClick={() => updateField('profileImage', '')}>Remove picture</button>}
+              </div>
+              <div className="provider-profile-photo-preview">
+                {form.profileImage
+                  ? <img src={form.profileImage} alt="Profile picture preview" />
+                  : <span aria-hidden="true">{form.businessName.charAt(0) || '?'}</span>}
+              </div>
+            </div>
             <label className="editor-wide provider-availability-toggle">
               <input type="checkbox" checked={form.isAvailable} onChange={(event) => updateField('isAvailable', event.target.checked)} />
               Accept new bookings

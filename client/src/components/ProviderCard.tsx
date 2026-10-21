@@ -16,7 +16,9 @@ export function ProviderCard({ provider, onBook, onCompare, compared = false, co
   return (
     <article className="provider-card">
       <div className="provider-image">
-        <div className="provider-avatar">{provider.businessName.charAt(0)}</div>
+        {provider.profileImage
+          ? <img src={provider.profileImage} alt={`${provider.businessName} profile`} />
+          : <div className="provider-avatar">{provider.businessName.charAt(0)}</div>}
         <button className={`heart-button ${saved ? 'saved' : ''}`} onClick={toggle} aria-label="Save provider">
           <Heart size={18} fill={saved ? 'currentColor' : 'none'} />
         </button>

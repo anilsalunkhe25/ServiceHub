@@ -16,7 +16,13 @@ const allowedClientOrigins = [process.env.CLIENT_URL, 'http://localhost:5173', '
 
 app.use(helmet())
 app.use(cors({ origin: allowedClientOrigins }))
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 200 }))
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests. Please wait a moment and try again.' },
+}))
 app.post('/api/payments/webhook', express.raw({ type: 'application/json', limit: '1mb' }), processRazorpayWebhook)
 app.use(express.json({ limit: '5mb' }))
 
@@ -41,4 +47,3 @@ app.use(errorHandler)
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`)
 })
-

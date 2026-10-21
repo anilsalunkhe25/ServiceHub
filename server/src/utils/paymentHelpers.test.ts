@@ -3,6 +3,7 @@ import { createHmac, randomBytes } from 'node:crypto'
 import test from 'node:test'
 import {
   canRetryPayment,
+  formatStartingPrice,
   getBasePricePaise,
   getBookingIntentKey,
   getRemainingRefundablePaise,
@@ -10,6 +11,14 @@ import {
   verifyRazorpayPaymentSignature,
   verifyRazorpayWebhookSignature,
 } from './paymentHelpers.js'
+
+test('adds the rupee symbol to service prices without duplicating existing currency', () => {
+  assert.equal(formatStartingPrice('From 300'), 'From ₹300')
+  assert.equal(formatStartingPrice('300'), '₹300')
+  assert.equal(formatStartingPrice('From ₹300'), 'From ₹300')
+  assert.equal(formatStartingPrice('Rs. 300'), 'Rs. 300')
+  assert.equal(formatStartingPrice('Price on request'), 'Price on request')
+})
 
 test('parses the first listed provider price into paise', () => {
   assert.equal(getBasePricePaise('From ₹1,499'), 149900)

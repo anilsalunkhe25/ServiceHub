@@ -55,6 +55,7 @@ export type DemoProvider = {
   serviceAreas?: string[]
   workingHours?: { days: string[]; start: string; end: string }
   pricingDetails?: string
+  profileImage?: string
   portfolioImages?: string[]
   isAvailable?: boolean
   rating: number
@@ -122,6 +123,7 @@ export const providerSchema = new Schema({
   serviceAreas: [String],
   workingHours: { days: [String], start: String, end: String },
   pricingDetails: String,
+  profileImage: String,
   portfolioImages: [String],
   isAvailable: { type: Boolean, default: true },
   rating: {
@@ -267,7 +269,7 @@ export function setDatabaseReady(value: boolean) {
 
 export function tokenFor(user: { id: string; role: string }) {
   const options: SignOptions = {
-    expiresIn: (process.env.JWT_EXPIRES_IN ?? '7d') as SignOptions['expiresIn'],
+    expiresIn: (process.env.JWT_EXPIRES_IN ?? '7h') as SignOptions['expiresIn'],
   }
 
   return jwt.sign({ id: user.id, role: user.role }, jwtSecret, options)

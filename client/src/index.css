@@ -122,8 +122,9 @@ button {
 .hero {
     overflow: hidden;
     position: relative;
-    background: linear-gradient(120deg, rgba(247, 247, 242, 0.88), rgba(247, 247, 242, 0.76)),
-        url('/bikerepair.jpeg') center/cover no-repeat;
+    background:
+        linear-gradient(90deg, rgba(247, 247, 242, 0.96) 0%, rgba(247, 247, 242, 0.88) 47%, rgba(247, 247, 242, 0.56) 100%),
+        url('/cleanning01.jpeg') center 42%/cover no-repeat;
     padding: 86px 0 106px;
 }
 
@@ -1088,6 +1089,89 @@ h2 span,
 
 .provider-image {
     background: #dff0e9;
+}
+
+.provider-summary-profile,
+.provider-profile-photo-editor {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.provider-summary-profile {
+    margin-bottom: 18px;
+}
+
+.provider-summary-profile img,
+.provider-profile-photo-preview img {
+    width: 76px;
+    height: 76px;
+    flex: 0 0 auto;
+    object-fit: cover;
+    border: 1px solid #dce5de;
+    border-radius: 50%;
+}
+
+.provider-summary-profile > span,
+.provider-profile-photo-preview > span {
+    display: grid;
+    width: 76px;
+    height: 76px;
+    flex: 0 0 auto;
+    place-items: center;
+    color: #fff;
+    background: var(--teal);
+    border-radius: 50%;
+    font: 600 32px Fraunces, serif;
+}
+
+.provider-summary-profile p,
+.provider-profile-photo-editor p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.provider-profile-photo-editor {
+    justify-content: space-between;
+    padding: 16px;
+    background: #f7f9f5;
+    border: 1px solid #e2e9e3;
+    border-radius: 8px;
+}
+
+.profile-photo-picker {
+    display: inline-flex;
+    margin-top: 12px;
+    padding: 9px 12px;
+    align-items: center;
+    color: #fff;
+    background: var(--teal);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.profile-photo-picker input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+.profile-photo-picker:focus-within {
+    outline: 2px solid #8dbeb2;
+    outline-offset: 2px;
+}
+
+.provider-profile-photo-editor .reject-button {
+    margin: 10px 0 0 8px;
+}
+
+.profile-avatar-image {
+    object-fit: cover;
 }
 
 .loader {

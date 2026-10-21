@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { auth } from '../middleware/auth.js'
 import { Booking, Provider, Withdrawal, demoProviders, demoProviderServices, demoWithdrawals, databaseReady } from '../config/appState.js'
 import type { DemoProvider, DemoWithdrawal } from '../config/appState.js'
-import { normalizeServicePackages } from '../utils/paymentHelpers.js'
+import { formatStartingPrice, normalizeServicePackages } from '../utils/paymentHelpers.js'
 
 const router = Router()
 
@@ -84,7 +84,7 @@ router.post('/withdrawals', auth('provider'), async (request, response, next) =>
 
 router.post('/me', auth('provider'), async (request, response, next) => {
   try {
-    const { businessName, category, description, city, address, pricing, experience, packages: packageInput, skills = [], serviceAreas = [], workingHours, pricingDetails = '', portfolioImages = [], isAvailable = true } = request.body
+    const { businessName, category, description, city, address, pricing, experience, packages: packageInput, skills = [], serviceAreas = [], workingHours, pricingDetails = '', profileImage = '', portfolioImages = [], isAvailable = true } = request.body
 
     if (!businessName || !category || !city) {
       return response.status(400).json({ success: false, message: 'Business name, service type and city are required' })
@@ -96,12 +96,15 @@ router.post('/me', auth('provider'), async (request, response, next) => {
     if (!Array.isArray(skills) || !Array.isArray(serviceAreas) || !Array.isArray(portfolioImages) || portfolioImages.length > 6 || portfolioImages.some((image: unknown) => typeof image !== 'string' || !image.startsWith('data:image/') || image.length > 650000)) {
       return response.status(400).json({ success: false, message: 'Use valid skills, service areas, and up to 6 compressed images' })
     }
+    if (typeof profileImage !== 'string' || (profileImage && (!/^data:image\/jpeg;base64,[A-Za-z\d+/]+=*$/.test(profileImage) || profileImage.length > 650000))) {
+      return response.status(400).json({ success: false, message: 'Choose a valid compressed JPEG profile picture under 500 KB' })
+    }
 
     const packages = normalizeServicePackages(packageInput)
     if (!packages) return response.status(400).json({ success: false, message: 'Packages must have unique IDs, names, prices and up to 10 features each' })
     const startingPrice = packages.length
       ? `From ₹${(Math.min(...packages.map((item) => item.pricePaise)) / 100).toLocaleString('en-IN')}`
-      : String(pricing || '').slice(0, 120)
+      : formatStartingPrice(pricing)
 
     if (!databaseReady) {
       const existing = demoProviderServices.find((item: DemoProvider) => item.userId === request.user?.id)
@@ -119,6 +122,7 @@ router.post('/me', auth('provider'), async (request, response, next) => {
         serviceAreas,
         workingHours,
         pricingDetails,
+        profileImage,
         portfolioImages,
         isAvailable,
       }
@@ -131,7 +135,7 @@ router.post('/me', auth('provider'), async (request, response, next) => {
 
     const service = await Provider.findOneAndUpdate(
       { userId: request.user?.id },
-      { businessName, category, description, city, address, pricing: startingPrice, experience: experience === undefined ? 0 : Number(experience), packages, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable, isActive: true },
+      { businessName, category, description, city, address, pricing: startingPrice, experience: experience === undefined ? 0 : Number(experience), packages, skills, serviceAreas, workingHours, pricingDetails, profileImage, portfolioImages, isAvailable, isActive: true },
       { new: true, upsert: true, setDefaultsOnInsert: true },
     )
 
@@ -160,7 +164,7 @@ router.get('/me', auth('provider'), async (request, response, next) => {
 
 router.put('/me', auth('provider'), async (request, response, next) => {
   try {
-    const { businessName, category, description, city, address, pricing, experience, packages: packageInput, skills = [], serviceAreas = [], workingHours, pricingDetails = '', portfolioImages = [], isAvailable = true } = request.body
+    const { businessName, category, description, city, address, pricing, experience, packages: packageInput, skills = [], serviceAreas = [], workingHours, pricingDetails = '', profileImage = '', portfolioImages = [], isAvailable = true } = request.body
 
     if (!businessName || !category || !city) {
       return response.status(400).json({ success: false, message: 'Business name, service type and city are required' })
@@ -172,12 +176,15 @@ router.put('/me', auth('provider'), async (request, response, next) => {
     if (!Array.isArray(skills) || !Array.isArray(serviceAreas) || !Array.isArray(portfolioImages) || portfolioImages.length > 6 || portfolioImages.some((image: unknown) => typeof image !== 'string' || !image.startsWith('data:image/') || image.length > 650000)) {
       return response.status(400).json({ success: false, message: 'Use valid skills, service areas, and up to 6 compressed images' })
     }
+    if (typeof profileImage !== 'string' || (profileImage && (!/^data:image\/jpeg;base64,[A-Za-z\d+/]+=*$/.test(profileImage) || profileImage.length > 650000))) {
+      return response.status(400).json({ success: false, message: 'Choose a valid compressed JPEG profile picture under 500 KB' })
+    }
 
     const packages = normalizeServicePackages(packageInput)
     if (!packages) return response.status(400).json({ success: false, message: 'Packages must have unique IDs, names, prices and up to 10 features each' })
     const startingPrice = packages.length
       ? `From ₹${(Math.min(...packages.map((item) => item.pricePaise)) / 100).toLocaleString('en-IN')}`
-      : String(pricing || '').slice(0, 120)
+      : formatStartingPrice(pricing)
 
     if (!databaseReady) {
       const existing = demoProviderServices.find((item: DemoProvider) => item.userId === request.user?.id)
@@ -185,13 +192,13 @@ router.put('/me', auth('provider'), async (request, response, next) => {
         return response.status(404).json({ success: false, message: 'Service not found' })
       }
 
-      Object.assign(existing, { businessName, category, description, city, address, pricing: startingPrice, packages, experience, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable })
+      Object.assign(existing, { businessName, category, description, city, address, pricing: startingPrice, packages, experience, skills, serviceAreas, workingHours, pricingDetails, profileImage, portfolioImages, isAvailable })
       return response.json({ success: true, message: 'Service updated successfully', data: existing })
     }
 
     const service = await Provider.findOneAndUpdate(
       { userId: request.user?.id },
-      { businessName, category, description, city, address, pricing: startingPrice, packages, experience, skills, serviceAreas, workingHours, pricingDetails, portfolioImages, isAvailable },
+      { businessName, category, description, city, address, pricing: startingPrice, packages, experience, skills, serviceAreas, workingHours, pricingDetails, profileImage, portfolioImages, isAvailable },
       { new: true },
     )
 

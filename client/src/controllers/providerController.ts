@@ -1,3 +1,4 @@
+import axios from 'axios'
 import {
   createBooking,
   deleteMyService,
@@ -83,6 +84,11 @@ export async function sendReview(bookingId: string, rating: number, comment: str
 }
 
 export function getErrorMessage(reason: unknown) {
-  const message = (reason as { response?: { data?: { message?: string } } })?.response?.data?.message
-  return message || 'Unable to connect. Please try again.'
+  if (axios.isAxiosError(reason)) {
+    const data: unknown = reason.response?.data
+    if (typeof data === 'string' && data.trim()) return data
+    if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') return data.message
+    if (!reason.response) return 'Unable to reach the server. Check your connection and try again.'
+  }
+  return reason instanceof Error ? reason.message : 'Unable to connect. Please try again.'
 }

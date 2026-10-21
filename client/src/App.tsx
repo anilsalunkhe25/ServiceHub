@@ -8,6 +8,7 @@ import { ServicesPage } from './views/ServicesPage'
 import { PaymentStatusPage } from './views/PaymentStatusPage'
 import { MyPaymentsPage } from './views/MyPaymentsPage'
 import { AdminPaymentsPage } from './views/AdminPaymentsPage'
+import { ChatbotWidget } from './components/ChatbotWidget'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/admin/payments" element={<AdminPaymentsPage />} />
           <Route path="*" element={<HomePage />} />
         </Routes>
+        <ChatbotWidget />
       </AuthProvider>
     </BrowserRouter>
   )
